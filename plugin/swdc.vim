@@ -151,7 +151,7 @@ let s:VERSION = '1.1.0'
             if s:HasData() == s:true
                 " It passes the time passed check and we have keystroke info to send
                 " update end time to now
-                let s:events.end = localtime()
+                let s:events.end = s:events.start
 
                 " update data to a string
                 let s:events.data = string(s:events.data)
