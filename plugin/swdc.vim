@@ -10,9 +10,9 @@ let s:local_url_endpoint = 'http://localhost:3000'
 let s:prod_api_endpoint = 'https://alpha.software.com'
 let s:prod_url_endpoint = 'https://alpha.software.com'
 
-" ..
+"
 " uncomment this and the 'echo' commands when releasing this plugin.
-" ..
+"...
 set shortmess=a
 set cmdheight=10
 
@@ -216,17 +216,31 @@ set cmdheight=10
                 call s:ResetData()
 
                 let s:jsonResp = s:executeCurl("POST", "", s:jsonbody)
-
+                echo "JSON RESPONSE: " . s:jsonResp
                 " old way
                 " echo "Software.com: sending data"
                 " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
                     " \ --silent --output /dev/null -X POST " . s:api_endpoint
 
+                " call s:isOk(s:jsonResp)
             endif 
 
         endif
     endfunction
 
+    " .
+    function! s:isOk(jsonresp)
+        echo "IS THIS RESPONSE OK? " . a:jsonresp
+        if exists(a:jsonresp) && a:jsonresp != ""
+            return s:true
+        endif
+
+        echo "NOT OK!"
+
+        return s:false
+    endfunction
+
+    " ...
     " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody)) 
     "
     "....
@@ -271,13 +285,14 @@ set cmdheight=10
             let s:jsonResp = strpart(s:res, s:pos, len(s:res) - 1)
         endif
 
-        if s:jsonResp == ""
+        if !exists(s:jsonResp) || s:jsonResp == ""
             " most likely => (7) Failed to connect to localhost port 5000: Connection refused
             echo "EMPTY RESPONSE"
         endif
         return s:jsonResp
     endfunction
 
+    " ...
     function! s:BuildJsonFromObj(json, obj, key)
         let s:jsonbody = a:json
         let s:val = a:obj[a:key]
