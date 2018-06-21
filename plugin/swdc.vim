@@ -222,23 +222,20 @@ set cmdheight=10
                 " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
                     " \ --silent --output /dev/null -X POST " . s:api_endpoint
 
-                let s:jsonResp = s:executeCurl("GET", "/ping", "")
-                
-                " example responses
-                " response: {"data":{"status":404},"message":"Resource not found","code":""}
-                " ping response: {"data":"pong","message":"success","code":200
             endif 
 
         endif
     endfunction
 
     " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody)) 
+    "
     "....
     " with response....
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
     " Dload  Upload   Total   Spent    Left  Speed
     " 100   422  100    64  100   358  24436   133k --:--:-- --:--:-- --:--:--  174k
     " {"data":{"status":404},"message":"Resource not found","code":""}
+    " OR {"data":"pong","message":"success","code":200}
     "
     " no response...
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
