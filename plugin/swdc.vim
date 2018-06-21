@@ -5,9 +5,16 @@
 " ============================================================================
 
 let s:VERSION = '1.1.0'
+let s:local_api_endpoint = 'http://localhost:5000'
+let s:local_url_endpoint = 'http://localhost:3000'
+let s:prod_api_endpoint = 'https://alpha.software.com'
+let s:prod_url_endpoint = 'https://alpha.software.com'
 
-" uncomment this and the 'echo' commands when releasing this plugin
-" set cmdheight=2
+" ..
+" uncomment this and the 'echo' commands when releasing this plugin.
+" ..
+set shortmess=a
+set cmdheight=10
 
 " Init {{{
 
@@ -17,9 +24,29 @@ let s:VERSION = '1.1.0'
         finish
     endif
 
+    " Avoid side-effects from cpoptions setting.
+    let s:save_cpo = &cpo
+    set cpo&vim
+ 
     " Use constants for boolean checks
     let s:true = 1
     let s:false = 0
+
+    " Check if we've already loaded the plugin or not
+    if exists("g:loaded_softwareco")
+       finish
+    endif
+    let g:loaded_softwareco = s:true
+
+    let s:home = expand("$HOME")
+    " ...
+    let s:api_endpoint = s:local_api_endpoint
+    let s:softwareDataDir = s:home . "/.software"
+    let s:softwareSessionFile = s:softwareDataDir . "/session.json"
+    let s:currentJwt = ""
+    let s:currentToken = ""
+    let s:currentSessionDict = {}
+    let s:curlOutputFile = s:softwareDataDir . "/vim.out"
 
     " api
     let s:pm_endpoint = 'http://localhost:19234/api/v1/data'
@@ -39,17 +66,13 @@ let s:VERSION = '1.1.0'
                 \ 'version': '0.1.0'
                 \ } 
 
-    " Check if we've already loaded the plugin or not
-    if exists("g:loaded_softwareco")
-       finish
-    endif
-    let g:loaded_softwareco = s:true
-
     " flag to indicate if we should error non-communication with the plugin manager or not
     let g:reported_api_err = s:false
 
     function! s:Init()
         " initialization logic 
+        call s:getSoftwareSessionFile()
+        " call s:curl("GET", [s:api_endpoint . "/ping"])
     endfunction
     
     function! s:ResetData()
@@ -192,15 +215,70 @@ let s:VERSION = '1.1.0'
 
                 call s:ResetData()
 
-                " send the payload..
+                let s:jsonResp = s:executeCurl("POST", "", s:jsonbody)
+
+                " old way
                 " echo "Software.com: sending data"
-                execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
-                    \ --silent --output /dev/null -X POST " . s:pm_endpoint
+                " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
+                    " \ --silent --output /dev/null -X POST " . s:api_endpoint
+
+                let s:jsonResp = s:executeCurl("GET", "/ping", "")
+                
+                " example responses
+                " response: {"data":{"status":404},"message":"Resource not found","code":""}
+                " ping response: {"data":"pong","message":"success","code":200
             endif 
-            " enough time passed so we'll reset the data..
-            "..........................................
-            call s:ResetData()
+
         endif
+    endfunction
+
+    " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody)) 
+    "....
+    " with response....
+    " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+    " Dload  Upload   Total   Spent    Left  Speed
+    " 100   422  100    64  100   358  24436   133k --:--:-- --:--:-- --:--:--  174k
+    " {"data":{"status":404},"message":"Resource not found","code":""}
+    "
+    " no response...
+    " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+    " Dload  Upload   Total   Spent    Left  Speed
+    " 0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0curl: (7) Failed to connect to localhost port 5000: Connection refused
+    function! s:executeCurl(method, api, optionalPayload)
+
+        let s:methodStr = "-X GET"
+        if tolower(a:method) == "post"
+            let s:methodStr = "-X POST"
+        endif
+
+        let s:headers = "-H 'Content-Type: application/json'"
+        " look for the jwt token and add it to the headers if we have it
+        let s:jwt = s:getItem("jwt")
+        if exists(s:jwt)
+            let s:headers = s:headers . " -H 'Authorization: " . s:jwt . "'"
+        endif
+
+        let s:payload = ""
+        if exists(a:optionalPayload) && a:optionalPayload != ""
+            let s:payload = "-d " . a:optionalPayload
+        endif
+
+        let s:endpoint = s:api_endpoint . "" . a:api
+        let s:command = "curl " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
+
+        " get the response
+        let s:res = system(s:command)
+        let s:jsonResp = ""
+        let s:pos = stridx(s:res, "{")
+        if s:pos != -1
+            let s:jsonResp = strpart(s:res, s:pos, len(s:res) - 1)
+        endif
+
+        if s:jsonResp == ""
+            " most likely => (7) Failed to connect to localhost port 5000: Connection refused
+            echo "EMPTY RESPONSE"
+        endif
+        return s:jsonResp
     endfunction
 
     function! s:BuildJsonFromObj(json, obj, key)
@@ -225,6 +303,21 @@ let s:VERSION = '1.1.0'
         let s:jsonbody = s:jsonbody . "}" 
         " return the new jsonbody string 
         return s:jsonbody
+    endfunction
+
+    function! s:ToJson(input)
+        let json = ''
+        if type(a:input) == type({})
+            let parts = deepcopy(a:input)
+            call map(parts, '"\"" . escape(v:key, "\"") . "\":" . s:ToJson(v:val)')
+            let json .= "{" . join(values(parts), ",") . "}"
+        elseif type(a:input) == type([])
+            let parts = map(deepcopy(a:input), 's:ToJson(v:val)')
+            let json .= "[" . join(parts, ",") . "]"
+        else
+            let json .= '"'.escape(a:input, '"').'"'
+        endif
+        return json
     endfunction
 
     function! s:BuildInnerValue(valobj, valobjkey)
@@ -263,6 +356,61 @@ let s:VERSION = '1.1.0'
             return s:true
         endif
         return s:false
+    endfunction
+
+    function! s:getSoftwareSessionFile()
+       " make sure the dir exists, if not, create it
+       if !isdirectory(s:softwareDataDir)
+           call mkdir(s:softwareDataDir, "p")
+       endif
+    endfunction
+
+    function! s:getSoftwareSessionAsJson()
+        call s:getSoftwareSessionFile() 
+        let s:content = ""
+        if filereadable(s:softwareSessionFile)
+            " get the contents in json format
+            let lines = readfile(s:softwareSessionFile)
+            " there should only be one line for the session.json file
+            for line in lines
+                let s:content = s:content . line
+            endfor
+            " get the value for the incoming key
+            let s:currentSessionDict = eval(s:content)
+        else
+            echo "No lines to read"
+            let s:currentSessionDict = {}
+        endif
+    endfunction
+
+    function! s:getItem(key)
+        call s:getSoftwareSessionAsJson()
+        return s:currentSessionDict[a:key]
+    endfunction
+
+    function! s:setItem(key, val)
+        call s:getSoftwareSessionAsJson()
+        let s:currentSessionDict[a:key] = a:val
+        echo "updated key/value: " . a:key . "/" . a:val
+        " let s:jsonbody = s:ToJson(s:newItem)
+        " call writefile([s:jsonbody], s:softwareSessionFile)
+    endfunction
+
+    function! s:CheckUserAuthentication()
+        echo "Checking use authentication status"
+        call s:getSoftwareSessionAsJson()
+        let s:jwtVal = get(s:currentSessionDict, "jwt)
+        if s:jwtVal == 0
+            " no jwt value, show the sign in message 
+            set cmdheight=5
+            try
+                execute "silent open \"http://alpha.software.com\""
+            catch
+                echoerr "Unable to open url: " . v:exception
+            endtry
+        else
+            " has a jwt value
+        endif
     endfunction
 
     " handle curosor activity, but if it's a recognized kpm, call the increment kpm function 
@@ -366,8 +514,6 @@ let s:VERSION = '1.1.0'
 " }}}
 
 
-call s:Init()
-
 " Autocommand Events {{{
 
     " listen for events then call the specified function based on the event
@@ -382,3 +528,10 @@ call s:Init()
     augroup END
 
 " }}}
+
+call s:Init()
+
+let &cpo = s:save_cpo
+finish
+
+" vim:set tw=0:
