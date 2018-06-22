@@ -12,7 +12,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
 " uncomment this and the 'echo' commands when releasing this plugin.
-"...
+"....
 set shortmess=a
 set cmdheight=10
 
@@ -212,32 +212,31 @@ set cmdheight=10
                     endif
                 endfor
                 let s:jsonbody = s:jsonbody . "}'"
-
+                " ...
                 call s:ResetData()
 
-                let s:jsonResp = s:executeCurl("POST", "", s:jsonbody)
-                echo "JSON RESPONSE: " . s:jsonResp
-                " old way
+                let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
+
+                " old way...
                 " echo "Software.com: sending data"
                 " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
                     " \ --silent --output /dev/null -X POST " . s:api_endpoint
 
-                " call s:isOk(s:jsonResp)
+                if s:isOk(s:jsonResp) == s:false
+                    " save the data offline
+                endif
             endif 
 
         endif
     endfunction
 
-    " .
+    ".....
     function! s:isOk(jsonresp)
-        echo "IS THIS RESPONSE OK? " . a:jsonresp
-        if exists(a:jsonresp) && a:jsonresp != ""
-            return s:true
+        if !exists(a:jsonresp) || a:jsonresp["code"] != 200
+            return s:false
         endif
 
-        echo "NOT OK!"
-
-        return s:false
+        return s:true
     endfunction
 
     " ...
@@ -255,6 +254,13 @@ set cmdheight=10
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
     " Dload  Upload   Total   Spent    Left  Speed
     " 0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0curl: (7) Failed to connect to localhost port 5000: Connection refused
+    "
+    " not authorized...
+    " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+    " Dload  Upload   Total   Spent    Left  Speed
+    " 100    12    0    12    0     0   4985      0 --:--:-- --:--:-- --:--:--  6000
+    " Unauthorized
+    "
     function! s:executeCurl(method, api, optionalPayload)
 
         let s:methodStr = "-X GET"
@@ -279,20 +285,27 @@ set cmdheight=10
 
         " get the response
         let s:res = system(s:command)
-        let s:jsonResp = ""
+        " ...
+        " echo "RESPONSE: " . s:res
+        let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
+        let s:unauthPos = stridx(s:res, "Unauthorized")
+        let s:badReqPos = stridx(s:res, ":404")
         if s:pos != -1
-            let s:jsonResp = strpart(s:res, s:pos, len(s:res) - 1)
+            let s:jsonResp = json_decode(strpart(s:res, s:pos, len(s:res) - 1))
+        elseif s:unauthPos != -1
+            " let s:jsonResp = strpart(s:res, s:unauthPos, len(s:res) - 1)
+            let s:jsonResp = {'code':401}
+        elseif s:badReqPos != -1
+            let s:jsonResp = {'code':404}
+        else
+            let s:jsonResp = {'code':500}
         endif
 
-        if !exists(s:jsonResp) || s:jsonResp == ""
-            " most likely => (7) Failed to connect to localhost port 5000: Connection refused
-            echo "EMPTY RESPONSE"
-        endif
         return s:jsonResp
     endfunction
 
-    " ...
+    " ....
     function! s:BuildJsonFromObj(json, obj, key)
         let s:jsonbody = a:json
         let s:val = a:obj[a:key]
