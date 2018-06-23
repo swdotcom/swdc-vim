@@ -222,7 +222,9 @@ set cmdheight=10
                 " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
                     " \ --silent --output /dev/null -X POST " . s:api_endpoint
 
-                if s:isOk(s:jsonResp) == s:false
+                let s:status = s:isOk(s:jsonResp)
+
+                if s:status == s:false
                     " save the data offline
                 endif
             endif 
@@ -230,7 +232,19 @@ set cmdheight=10
         endif
     endfunction
 
-    ".....
+    function! s:LaunchDashboard()
+        let s:web_url = "https://alpha.software.com"
+
+        let s:jwt = s:getItem("jwt")
+        if !exists(s:jwt)
+            " no jwt, launch the onboarding url
+            " generate a random token
+            let s:tokenVal = "abc123"
+            let s:web_url = s:web_url . "/onboarding?token=" . s:tokenVal
+        endif
+        execute "silent !open " . s:web_url
+    endfunction
+
     function! s:isOk(jsonresp)
         if !exists(a:jsonresp) || a:jsonresp["code"] != 200
             return s:false
@@ -239,7 +253,6 @@ set cmdheight=10
         return s:true
     endfunction
 
-    " ...
     " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody)) 
     "
     "....
