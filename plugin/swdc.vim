@@ -43,6 +43,7 @@ set cmdheight=10
     let s:api_endpoint = s:local_api_endpoint
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
+    let s:softwareDataFile = s:softwareDataDir . "/data.json"
     let s:currentJwt = ""
     let s:currentToken = ""
     let s:currentSessionDict = {}
@@ -71,10 +72,11 @@ set cmdheight=10
 
     function! s:Init()
         " initialization logic 
-        call s:getSoftwareSessionFile()
+        call s:checkSoftwareDir()
         " call s:curl("GET", [s:api_endpoint . "/ping"])
     endfunction
     
+    " ...
     function! s:ResetData()
          " reset the data and, start, end, source, and project
          let s:events.source = {} 
@@ -226,12 +228,15 @@ set cmdheight=10
 
                 if s:status == s:false
                     " save the data offline
+                    echo "writing to offline file"
+                    call s:saveOfflineData(s:jsonbody)
                 endif
             endif 
 
         endif
     endfunction
 
+    " ......
     function! s:LaunchDashboard()
         let s:web_url = "https://alpha.software.com"
 
@@ -246,7 +251,7 @@ set cmdheight=10
     endfunction
 
     function! s:isOk(jsonresp)
-        if !exists(a:jsonresp) || a:jsonresp["code"] != 200
+        if a:jsonresp["code"] != 200
             return s:false
         endif
 
@@ -396,7 +401,7 @@ set cmdheight=10
         return s:false
     endfunction
 
-    function! s:getSoftwareSessionFile()
+    function! s:checkSoftwareDir()
        " make sure the dir exists, if not, create it
        if !isdirectory(s:softwareDataDir)
            call mkdir(s:softwareDataDir, "p")
@@ -404,7 +409,7 @@ set cmdheight=10
     endfunction
 
     function! s:getSoftwareSessionAsJson()
-        call s:getSoftwareSessionFile() 
+        call s:checkSoftwareDir() 
         let s:content = ""
         if filereadable(s:softwareSessionFile)
             " get the contents in json format
@@ -432,6 +437,12 @@ set cmdheight=10
         echo "updated key/value: " . a:key . "/" . a:val
         " let s:jsonbody = s:ToJson(s:newItem)
         " call writefile([s:jsonbody], s:softwareSessionFile)
+    endfunction
+
+    function! s:saveOfflineData(data)
+        call s:checkSoftwareDir()
+        " get the data file to save it to s:softwareDataFile
+        execute "silent !echo " . a:data . " >> " . s:softwareDataFile
     endfunction
 
     function! s:CheckUserAuthentication()
