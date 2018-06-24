@@ -39,7 +39,6 @@ set cmdheight=1
     let g:loaded_softwareco = s:true
 
     let s:home = expand("$HOME")
-    " ...
     let s:api_endpoint = s:local_api_endpoint
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
@@ -74,10 +73,8 @@ set cmdheight=1
         " initialization logic 
         call s:checkSoftwareDir()
         call s:checkUserAuthentication()
-        " call s:curl("GET", [s:api_endpoint . "/ping"])
     endfunction
-    
-    " ...
+
     function! s:ResetData()
          " reset the data and, start, end, source, and project
          let s:events.source = {} 
@@ -265,7 +262,8 @@ set cmdheight=1
         if !exists(s:jwt)
             " no jwt, launch the onboarding url
             " generate a random token
-            let s:tokenVal = "abc123"
+            let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
+            call s:setItem("token", s:tokenVal)
             let s:web_url = s:web_url . "/onboarding?token=" . s:tokenVal
         endif
         execute "silent !open " . s:web_url
