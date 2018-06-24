@@ -47,6 +47,7 @@ set cmdheight=1
     let s:currentToken = ""
     let s:currentSessionDict = {}
     let s:curlOutputFile = s:softwareDataDir . "/vim.out"
+    let s:last_time_auth_check = 0
 
     " api
     let s:pm_endpoint = 'http://localhost:19234/api/v1/data'
@@ -186,6 +187,13 @@ set cmdheight=1
         return s:false
     endfunction
 
+    function! s:enoughTimePassedForAuthCheck()
+        if s:last_time_auth_check > 0 && localtime() - s:last_time_auth_check > (60 * 60 * 24)
+            return s:true
+        endif
+        return s:false
+    endfunction
+
     function! s:EnoughTimePassed()
         let s:prev = s:last_time_check
         let s:now = localtime()
@@ -197,60 +205,63 @@ set cmdheight=1
 
     " Send the payload to the plugin manager if it meets the timecheck and data availability check
     function! s:SendData()
-        if s:EnoughTimePassed() == s:true
-            if s:HasData() == s:true
-                " It passes the time passed check and we have keystroke info to send
-                " update end time to now
-                let s:events.end = s:events.start
+        if s:EnoughTimePassed() == s:true && s:HasData() == s:true
 
-                " update data to a string
-                let s:events.data = string(s:events.data)
+            " check if we're authenticated or not
+            call s:checkUserAuthentication()
 
-                let s:jsonbody = "'{"
-                let s:len = len(s:events)
-                let s:counter = 0
-                for key in keys(s:events)
-                    if key == 'project'
-                        let s:jsonbody = s:BuildJsonFromObj(s:jsonbody, s:events, key)
-                    elseif key == 'source'
-                        " go trhough the file names and build the json object
-                        " per file name
-                        for key in keys(s:events.source)
-                            let s:jsonbody = s:jsonbody . '"source": {"' . key . '": {'
-                            let s:file_event_info = s:events.source[key]
-                            let s:maplen = len(s:file_event_info)
-                            let s:source_counter = 0
-                            for infoKey in keys(s:file_event_info)
-                                let s:jsonbody = s:jsonbody . '"' . infoKey . '": ' . s:file_event_info[infoKey]
-                                let s:source_counter = s:source_counter + 1
-                                if s:source_counter < s:maplen
-                                    let s:jsonbody = s:jsonbody . ", "
-                                endif
-                            endfor
-                            let s:jsonbody = s:jsonbody . "}}"
+
+            " It passes the time passed check and we have keystroke info to send
+            " update end time to now
+            let s:events.end = s:events.start
+
+            " update data to a string
+            let s:events.data = string(s:events.data)
+
+            let s:jsonbody = "'{"
+            let s:len = len(s:events)
+            let s:counter = 0
+            for key in keys(s:events)
+                if key == 'project'
+                    let s:jsonbody = s:BuildJsonFromObj(s:jsonbody, s:events, key)
+                elseif key == 'source'
+                    " go trhough the file names and build the json object
+                    " per file name
+                    for key in keys(s:events.source)
+                        let s:jsonbody = s:jsonbody . '"source": {"' . key . '": {'
+                        let s:file_event_info = s:events.source[key]
+                        let s:maplen = len(s:file_event_info)
+                        let s:source_counter = 0
+                        for infoKey in keys(s:file_event_info)
+                            let s:jsonbody = s:jsonbody . '"' . infoKey . '": ' . s:file_event_info[infoKey]
+                            let s:source_counter = s:source_counter + 1
+                            if s:source_counter < s:maplen
+                                let s:jsonbody = s:jsonbody . ", "
+                            endif
                         endfor
-                    else
-                        let s:keyval = s:BuildInnerValue(s:events, key)
-                        let s:jsonbody = s:jsonbody . '"' . key . '": ' . s:keyval
-                    endif
-                    let s:counter = s:counter + 1
-                    if s:counter < s:len
-                        let s:jsonbody = s:jsonbody . ", "
-                    endif
-                endfor
-                let s:jsonbody = s:jsonbody . "}'"
-
-                call s:ResetData()
-
-                let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
-
-                let s:status = s:isOk(s:jsonResp)
-
-                if s:status == s:false
-                    " save the data offline
-                    call s:saveOfflineData(s:jsonbody)
+                        let s:jsonbody = s:jsonbody . "}}"
+                    endfor
+                else
+                    let s:keyval = s:BuildInnerValue(s:events, key)
+                    let s:jsonbody = s:jsonbody . '"' . key . '": ' . s:keyval
                 endif
-            endif 
+                let s:counter = s:counter + 1
+                if s:counter < s:len
+                    let s:jsonbody = s:jsonbody . ", "
+                endif
+            endfor
+            let s:jsonbody = s:jsonbody . "}'"
+
+            call s:ResetData()
+
+            let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
+
+            let s:status = s:isOk(s:jsonResp)
+
+            if s:status == s:false
+                " save the data offline
+                call s:saveOfflineData(s:jsonbody)
+            endif
 
         endif
     endfunction
@@ -259,7 +270,7 @@ set cmdheight=1
         let s:web_url = "https://alpha.software.com"
 
         let s:jwt = s:getItem("jwt")
-        if !exists(s:jwt)
+        if s:jwt == ""
             " no jwt, launch the onboarding url
             " generate a random token
             let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
@@ -308,7 +319,7 @@ set cmdheight=1
         let s:headers = "-H 'Content-Type: application/json'"
         " look for the jwt token and add it to the headers if we have it
         let s:jwt = s:getItem("jwt")
-        if exists(s:jwt)
+        if s:jwt != ""
             let s:headers = s:headers . " -H 'Authorization: " . s:jwt . "'"
         endif
 
@@ -437,19 +448,24 @@ set cmdheight=1
     endfunction
 
     function! s:checkUserAuthentication()
-        " echo "Checking use authentication status"
-        let s:jwt = s:getItem("jwt")
-        if !exists(s:jwt)
-            call s:confirmSignInLaunch()
-        elseif
-            let s:jsonResp = s:executeCurl("GET", "/users/ping/", "") 
-            let s:status = s:isOk(s:jsonResp)
-            if s:status == s:false
+        let s:token = s:getItem("token")
+        if (s:enoughTimePassedForAuthCheck() == s:true || s:token == "")
+            let s:last_time_auth_check = localtime()
+            " echo "Checking use authentication status"
+            let s:jwt = s:getItem("jwt")
+            if s:jwt == ""
                 call s:confirmSignInLaunch()
+            elseif
+                let s:jsonResp = s:executeCurl("GET", "/users/ping/", "") 
+                let s:status = s:isOk(s:jsonResp)
+                if s:status == s:false
+                    call s:confirmSignInLaunch()
+                endif
             endif
         endif
     endfunction
 
+    " ....
     function! s:confirmSignInLaunch()
         " 0 is returned if the user aborts the dialog by pressing <Esc>, CTRL-C, or another interrupt key
         let s:answer = confirm('To see your coding data in Software.com, please sign in to your account.', "&Not now\n&Sign in", 2)
