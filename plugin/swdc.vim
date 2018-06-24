@@ -7,7 +7,7 @@
 let s:VERSION = '1.1.0'
 let s:local_api_endpoint = 'http://localhost:5000'
 let s:local_url_endpoint = 'http://localhost:3000'
-let s:prod_api_endpoint = 'https://alpha.software.com'
+let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
@@ -40,6 +40,7 @@ set cmdheight=12
 
     let s:home = expand("$HOME")
     let s:api_endpoint = s:local_api_endpoint
+    let s:url_endpoint = s:local_url_endpoint
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
     let s:softwareDataFile = s:softwareDataDir . "/data.json"
@@ -278,7 +279,7 @@ set cmdheight=12
     endfunction
 
     function! s:launchDashboard()
-        let s:web_url = "https://alpha.software.com"
+        let s:web_url = s:url_endpoint
 
         let s:jwt = s:getItem("jwt")
         if s:jwt == ""
