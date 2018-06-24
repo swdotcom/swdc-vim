@@ -12,9 +12,9 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
 " uncomment this and the 'echo' commands when releasing this plugin.
-"....
+"
 set shortmess=a
-set cmdheight=10
+set cmdheight=12
 
 " Init {{{
 
@@ -33,7 +33,6 @@ set cmdheight=10
     let s:false = 0
 
     " Check if we've already loaded the plugin or not
-    " ...
     if exists("g:loaded_softwareco")
        finish
     endif
@@ -48,7 +47,6 @@ set cmdheight=10
     let s:currentToken = ""
     let s:currentSessionDict = {}
     let s:curlOutputFile = s:softwareDataDir . "/vim.out"
-    let s:last_time_auth_check = 0
 
     " api
     let s:pm_endpoint = 'http://localhost:19234/api/v1/data'
@@ -190,7 +188,13 @@ set cmdheight=10
     endfunction
 
     function! s:enoughTimePassedForAuthCheck()
-        if s:last_time_auth_check > 0 && localtime() - s:last_time_auth_check > (60 * 60 * 24)
+        let s:lastTimeChecked = s:getItem("vim_lastUpdateTime")
+        if s:lastTimeChecked == ""
+            let s:lastTimeChecked = localtime()
+        else
+            let s:lastTimeChecked = str2nr(s:lastTimeChecked)
+        endif
+        if localtime() - s:lastTimeChecked > (60 * 60 * 24)
             return s:true
         endif
         return s:false
@@ -283,7 +287,7 @@ set cmdheight=10
             let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
             call s:setItem("token", s:tokenVal)
             " update last update time
-            call s:setItem("vim_lastUpdateTime", localtime()
+            call s:setItem("vim_lastUpdateTime", localtime())
             let s:web_url = s:web_url . "/onboarding?token=" . s:tokenVal
         endif
         execute "silent !open " . s:web_url
@@ -343,14 +347,20 @@ set cmdheight=10
         " get the response
         let s:res = system(s:command)
 
+        echo "CURL RESP: " . s:res
+
         let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
         let s:unauthPos = stridx(s:res, "Unauthorized")
         let s:badReqPos = stridx(s:res, ":404")
         if s:pos != -1
             let s:strResp = strpart(s:res, s:pos, len(s:res) - 1)
-            echo "API RESP: " . s:strResp
             let s:jsonResp = json_decode(s:strResp)
+            if !has_key(s:jsonResp, "code")
+                " this means our api has returned a message response
+                " which means it wasn't a 200/ok response
+                let s:jsonResp["code"] = 400
+            endif
         elseif s:unauthPos != -1
             " let s:jsonResp = strpart(s:res, s:unauthPos, len(s:res) - 1)
             let s:jsonResp = {'code':401}
@@ -460,11 +470,7 @@ set cmdheight=10
 
     function! s:sendOfflineData()
         let s:isAuthenticated = s:checkUserAuthentication()
-        if s:isAuthenticated == s:false
-            return
-        endif
-
-        if filereadable(s:softwareDataFile)
+        if s:isAuthenticated == s:true && filereadable(s:softwareDataFile)
             let lines = readfile(s:softwareDataFile)
             " there should only be one line for the session.json file
             let s:content = ""
@@ -473,17 +479,16 @@ set cmdheight=10
             endfor
             let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
             let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
-            if s:isOk(s:jsonResp) == s:true
+            let s:status = s:isOk(s:jsonResp)
+            if s:status == s:true
                 " send the batch data, delete the file
-                delete(s:softwareDataFile)
-                redraw!
-                echo ""
+                execute "silent !rm " . s:softwareDataFile
             endif
         endif
     endfunction
 
     function! s:checkUserAuthentication()
-        let s:authenticated = s:true
+        let s:authenticated = s:false
         let s:token = s:getItem("token")
         " echo "Checking use authentication status"
         let s:jwt = s:getItem("jwt")
@@ -499,7 +504,7 @@ set cmdheight=10
         endif
         
         if (s:authenticated == s:false && (s:enoughTimePassedForAuthCheck() == s:true || s:token == ""))
-            let s:last_time_auth_check = localtime()
+            call s:setItem("vim_lastUpdateTime", localtime())
             call s:confirmSignInLaunch()
         endif
         return s:authenticated
@@ -519,18 +524,34 @@ set cmdheight=10
     function! s:checkTokenAvailability()
        let s:tokenVal = s:getItem("token") 
        let s:jwt = s:getItem("jwt")
+       let s:continueTokenCheck = s:false
+
        if s:tokenVal != ""
-           " call the api to see if we can find the users JWT
-           let s:jsonResp = s:executeCurl("GET", "/users/plugin/confirm?token=" . s:tokenVal, "")
-           if s:isOk(s:jsonResp) == s:true
-               " echo "FOUND JWT: " . s:jsonResp["jwt"]
-           elseif
-               " echo "NO JWT, status: " . s:jsonResp["status"]
+           if s:jwt == ""
+               let s:continueTokenCheck = s:true
+           else
+               " check if we're not authenticated since we already have a jwt
+               let s:authenticated = s:checkUserAuthentication()
+               if s:authenticated == s:false
+                   let s:continueTokenCheck = s:true
+               endif
            endif
+       endif
+
+       if s:continueTokenCheck == s:true
+           " call the api to see if we can find the users JWT
+           let s:api = "/users/plugin/confirm?token=" . s:tokenVal
+           let s:jsonResp = s:executeCurl("GET", s:api, "")
+           let s:status = s:isOk(s:jsonResp)
+           " if s:status== s:true
+               " echo "FOUND JWT: " . s:jsonResp["jwt"]
+           " elseif
+               " echo "NO JWT, status: " . s:jsonResp["status"]
+           " endif
        endif
     endfunction
 
-    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function.
+    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
     function! s:HandleCursorActivity()
         if v:insertmode != 'i'
             return
