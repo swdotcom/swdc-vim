@@ -27,7 +27,7 @@ set cmdheight=1
     " Avoid side-effects from cpoptions setting.
     let s:save_cpo = &cpo
     set cpo&vim
- 
+
     " Use constants for boolean checks
     let s:true = 1
     let s:false = 0
@@ -65,21 +65,20 @@ set cmdheight=1
                 \ 'project': {'name': '', 'directory': ''},
                 \ 'pluginId': 10,
                 \ 'version': '0.1.0'
-                \ } 
+                \ }
 
     " flag to indicate if we should error non-communication with the plugin manager or not
     let g:reported_api_err = s:false
 
     function! s:Init()
-        " initialization logic 
+        " initialization logic
         call s:checkSoftwareDir()
-        " call s:checkUserAuthentication()
         call s:sendOfflineData()
     endfunction
 
     function! s:ResetData()
          " reset the data and, start, end, source, and project
-         let s:events.source = {} 
+         let s:events.source = {}
          let s:events.start = localtime()
          let s:events.end = 0
          let s:events.project = {'name': '', 'directory': ''}
@@ -208,10 +207,6 @@ set cmdheight=1
     function! s:SendData()
         if s:EnoughTimePassed() == s:true && s:HasData() == s:true
 
-            " check if we're authenticated or not
-            call s:checkUserAuthentication()
-
-
             " It passes the time passed check and we have keystroke info to send
             " update end time to now
             let s:events.end = s:events.start
@@ -255,6 +250,14 @@ set cmdheight=1
 
             call s:ResetData()
 
+            " check if we're authenticated or not
+            let s:isAuthenticated = s:checkUserAuthentication()
+            if s:isAuthenticated == s:false
+               " not authenticated, write to offline file
+               call s:saveOfflineData(s:jsonbody)
+               return
+            endif
+
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
 
             let s:status = s:isOk(s:jsonResp)
@@ -289,7 +292,7 @@ set cmdheight=1
         return s:true
     endfunction
 
-    " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody)) 
+    " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody))
     "
     "....
     " with response....
@@ -365,15 +368,15 @@ set cmdheight=1
             " and replace it with a double quote
             let s:subkeyval = s:BuildInnerValue(s:val, subkey)
 
-            " set the key value pair 
+            " set the key value pair
             let s:jsonbody = s:jsonbody . '"' . subkey . '": ' . s:subkeyval
             let s:valcounter = s:valcounter + 1
             if s:valcounter < s:vallen
                 let s:jsonbody = s:jsonbody . ", "
             endif
         endfor
-        let s:jsonbody = s:jsonbody . "}" 
-        " return the new jsonbody string 
+        let s:jsonbody = s:jsonbody . "}"
+        " return the new jsonbody string
         return s:jsonbody
     endfunction
 
@@ -411,7 +414,7 @@ set cmdheight=1
     endfunction
 
     function! s:getSoftwareSessionAsJson()
-        call s:checkSoftwareDir() 
+        call s:checkSoftwareDir()
         if filereadable(s:softwareSessionFile)
             " get the contents in json format
             let lines = readfile(s:softwareSessionFile)
@@ -449,6 +452,11 @@ set cmdheight=1
     endfunction
 
     function! s:sendOfflineData()
+        let s:isAuthenticated = s:checkUserAuthentication()
+        if s:isAuthenticated == s:false
+            return
+        endif
+
         if filereadable(s:softwareDataFile)
             let lines = readfile(s:softwareDataFile)
             " there should only be one line for the session.json file
@@ -457,28 +465,39 @@ set cmdheight=1
                 let s:content = s:content . line . ","
             endfor
             let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
-        endif 
-    endfunction
-
-    function! s:checkUserAuthentication()
-        let s:token = s:getItem("token")
-        if (s:enoughTimePassedForAuthCheck() == s:true || s:token == "")
-            let s:last_time_auth_check = localtime()
-            " echo "Checking use authentication status"
-            let s:jwt = s:getItem("jwt")
-            if s:jwt == ""
-                call s:confirmSignInLaunch()
-            elseif
-                let s:jsonResp = s:executeCurl("GET", "/users/ping/", "") 
-                let s:status = s:isOk(s:jsonResp)
-                if s:status == s:false
-                    call s:confirmSignInLaunch()
-                endif
+            let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
+            if s:isOk(s:jsonResp) == s:true
+                " send the batch data, delete the file
+                delete(s:softwareDataFile)
+                redraw!
+                echo ""
             endif
         endif
     endfunction
 
-    " ....
+    function! s:checkUserAuthentication()
+        let s:authenticated = s:true
+        let s:token = s:getItem("token")
+        " echo "Checking use authentication status"
+        let s:jwt = s:getItem("jwt")
+
+        if s:jwt == ""
+            let s:authenticated = s:false
+        else
+            let s:jsonResp = s:executeCurl("GET", "/users/ping/", "")
+            let s:status = s:isOk(s:jsonResp)
+            if s:status == s:false
+                let s:authenticated = s:false 
+            endif
+        endif
+        
+        if (s:authenticated == s:false && (s:enoughTimePassedForAuthCheck() == s:true || s:token == ""))
+            let s:last_time_auth_check = localtime()
+            call s:confirmSignInLaunch()
+        endif
+        return s:authenticated
+    endfunction
+
     function! s:confirmSignInLaunch()
         " 0 is returned if the user aborts the dialog by pressing <Esc>, CTRL-C, or another interrupt key
         let s:answer = confirm('To see your coding data in Software.com, please sign in to your account.', "&Not now\n&Sign in", 2)
@@ -489,17 +508,17 @@ set cmdheight=1
         endif
     endfunction
 
-    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function 
+    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
     function! s:HandleCursorActivity()
-        if v:insertmode != 'i' 
+        if v:insertmode != 'i'
             return
         endif
 
         let s:file = s:GetCurrentFile()
-        if !empty(s:file) && s:file !~ "-MiniBufExplorer-" && s:file !~ "--NO NAME--" && s:file !~ "^term:" 
+        if !empty(s:file) && s:file !~ "-MiniBufExplorer-" && s:file !~ "--NO NAME--" && s:file !~ "^term:"
             " increment the kpm data
-            call s:IncrementKPM() 
-        endif 
+            call s:IncrementKPM()
+        endif
     endfunction
 
     " handle file open
@@ -509,7 +528,7 @@ set cmdheight=1
       let s:file = s:GetCurrentFile()
       call s:InitializeFileEvents(s:file)
 
-      let s:events.source[s:file]['open'] = s:events.source[s:file]['open'] + 1 
+      let s:events.source[s:file]['open'] = s:events.source[s:file]['open'] + 1
       " echo "Software.com: File open incremented"
     endfunction
 
