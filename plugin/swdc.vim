@@ -12,7 +12,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
 " uncomment this and the 'echo' commands when releasing this plugin.
-"..
+" ....
 set shortmess=a
 set cmdheight=12
 
@@ -24,7 +24,7 @@ set cmdheight=12
         finish
     endif
 
-    " Avoid side-effects from cpoptions setting.
+    " Avoid side-effects from cpoptions setting....
     let s:save_cpo = &cpo
     set cpo&vim
 
@@ -55,8 +55,8 @@ set cmdheight=12
     " event management vars
     let s:kpm_count = 0
     let s:current_file_size = 0
+    let s:lastKpmFetchTime = localtime()
     let s:last_time_check = localtime()
-    let s:lastKpmFetchTime = 0
     let s:events = {
                 \ 'source': {},
                 \ 'type': 'Events',
@@ -203,18 +203,21 @@ set cmdheight=12
         return s:false
     endfunction
 
-    function! s:EnoughTimePassed()
-        let s:prev = s:last_time_check
+    function! s:enoughTimePassedForKpmFetch()
+        let s:prevKpmTime = s:lastKpmFetchTime
         let s:now = localtime()
-        if s:prev > 0 && s:now - s:prev > 60
+        if s:prevKpmTime > 0 && s:now - s:prevKpmTime > 60
+            let s:lastKpmFetchTime = s:now
             return s:true
         endif
         return s:false
     endfunction
 
-    function! s:EnoughKpmFetchTimePassed()
-        if localtime() - s:lastKpmFetchTime > 60
-            let s:lastKpmFetchTime = localtime()
+    function! s:EnoughTimePassed()
+        let s:prev = s:last_time_check
+        let s:now = localtime()
+        if s:prev > 0 && s:now - s:prev > 60
+            let s:last_time_check = s:now
             return s:true
         endif
         return s:false
@@ -286,6 +289,7 @@ set cmdheight=12
             endif
 
         endif
+        call s:fetchDailyKpmSessionInfo()
     endfunction
 
     function! s:launchDashboard()
@@ -367,12 +371,15 @@ set cmdheight=12
             let s:jsonResp = json_decode(s:strResp)
             if !has_key(s:jsonResp, "code")
                 if has_key(s:jsonResp, "message")
-                    if s:jsonResp["message"] != "success"
-                        let s:jsonResp["code"] = 400
-                    else
+                    let s:msg = s:jsonResp["message"]
+                    if s:msg == "success"
                         let s:jsonResp["code"] = 200
+                    else
+                        let s:jsonResp["code"] = 400
                     endif
                 else
+                    " this means our api has returned a message response
+                    " which means it wasn't a 200/ok response
                     let s:jsonResp["code"] = 400
                 endif
             endif
@@ -503,7 +510,7 @@ set cmdheight=12
     endfunction
 
     function! s:checkUserAuthentication()
-        let s:authenticated = s:true
+        let s:authenticated = s:false
         let s:token = s:getItem("token")
         " echo "Checking use authentication status"
         let s:jwt = s:getItem("jwt")
@@ -558,32 +565,21 @@ set cmdheight=12
            let s:api = "/users/plugin/confirm?token=" . s:tokenVal
            let s:jsonResp = s:executeCurl("GET", s:api, "")
            let s:status = s:isOk(s:jsonResp)
-           if s:status == s:true
-               call s:setItem("jwt", s:jsonResp["jwt"])
-           endif
+           " if s:status== s:true
+               " echo "FOUND JWT: " . s:jsonResp["jwt"]
+           " elseif
+               " echo "NO JWT, status: " . s:jsonResp["status"]
+           " endif
        endif
     endfunction
 
     function! s:fetchDailyKpmSessionInfo()
-
-        if s:EnoughKpmFetchTimePassed() == s:true
-            let s:api = "/sessions?from=" . localtime() . "&summary=true"
+        if s:enoughTimePassedForKpmFetch() == s:true
+            let s:now = localtime()
+            let s:api = "/sessions?from=" . s:now . "&summary=true"
             let s:jsonResp = s:executeCurl("GET", s:api, "")
-            if s:isOk(s:jsonResp) == s:true
-                " show the kpm and time
-                let s:kpm = 0
-                let s:minutesTotal = 0
-                let s:inFlow = s:true
-                if has_key(s:jsonResp, "kpm")
-                    echo "KPM: " . s:jsonResp["kpm"]
-                endif
-                if has_key(s:jsonResp, "minutesTotal")
-                    echo "MINUTES: " . s:jsonResp["minutesTotal"]
-                endif
-                if has_key(s:jsonResp, "inFlow")
-                    echo "IN FLOW : " . s:jsonResp["inFlow"]
-                endif
-            endif
+        else
+            echo "NOT ENOUGH TIME PASSED TO FETCH KPM DATA"
         endif
     endfunction
 
@@ -693,6 +689,7 @@ set cmdheight=12
     " listen for events then call the specified function based on the event
     augroup SoftwareCo
         autocmd CursorMovedI * call s:HandleCursorActivity()
+        " the user doesn't press a key for a while this is triggered
         autocmd CursorHold * call s:Timer()
         autocmd CursorHoldI * call s:HandleCursorHoldInInsertActivity()
         autocmd BufNewFile,BufReadPost * call s:HandleNewFileActivity()
