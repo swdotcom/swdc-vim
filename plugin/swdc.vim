@@ -578,8 +578,18 @@ set cmdheight=12
             let s:now = localtime()
             let s:api = "/sessions?from=" . s:now . "&summary=true"
             let s:jsonResp = s:executeCurl("GET", s:api, "")
-        else
-            echo "NOT ENOUGH TIME PASSED TO FETCH KPM DATA"
+
+            let s:kpm = 0
+            let s:inFlow = s:true
+            let s:minutesTotal = 0
+
+            if has_key(s:jsonResp, "kpm")
+                let s:kpm = str2nr(s:jsonResp["kpm"])
+            endif
+            if has_key(s:jsonResp, "minutesTotal")
+                let s:minutesTotal = str2nr(s:jsonResp["minutesTotal"])
+            endif
+            echo s:kpm . " KPM, " . s:minutesTotal . " min"
         endif
     endfunction
 
@@ -635,11 +645,13 @@ set cmdheight=12
 
       " make sure we don't count the entire file size as copy and
       " paste if all they did was start an insert but then saved it
-      " without making any key stroke
+      " without making any key stroke....
       if s:diff > 0 && s:kpm_count == 0
         let s:diff = 0
       endif
 
+      " ....
+      " .........
       let s:file = s:GetCurrentFile()
       call s:InitializeFileEvents(s:file)
       if s:diff > 1
