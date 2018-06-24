@@ -73,6 +73,7 @@ set cmdheight=10
     function! s:Init()
         " initialization logic 
         call s:checkSoftwareDir()
+        call s:checkUserAuthentication()
         " call s:curl("GET", [s:api_endpoint . "/ping"])
     endfunction
     
@@ -170,6 +171,33 @@ set cmdheight=10
         call feedkeys("f\e")
     endfunction
 
+    function! s:HasData()
+        " go through the file events to see if any of the other metrics have data
+        for key in keys(s:events.source)
+            let s:file_event_info = s:events.source[key]
+            for infoKey in keys(s:file_event_info)
+                if infoKey == "length"
+                    continue
+                endif
+                let s:infoVal = s:file_event_info[infoKey]
+                if s:infoVal > 0
+                    return s:true
+                endif
+            endfor
+        endfor
+
+        return s:false
+    endfunction
+
+    function! s:EnoughTimePassed()
+        let s:prev = s:last_time_check
+        let s:now = localtime()
+        if s:prev > 0 && s:now - s:prev > 60
+            return s:true
+        endif
+        return s:false
+    endfunction
+
     " Send the payload to the plugin manager if it meets the timecheck and data availability check
     function! s:SendData()
         if s:EnoughTimePassed() == s:true
@@ -214,21 +242,15 @@ set cmdheight=10
                     endif
                 endfor
                 let s:jsonbody = s:jsonbody . "}'"
-                " ...
+
                 call s:ResetData()
 
                 let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
-
-                " old way...
-                " echo "Software.com: sending data"
-                " execute "silent !curl -d " . s:jsonbody . " -H 'Content-Type: application/json' 
-                    " \ --silent --output /dev/null -X POST " . s:api_endpoint
 
                 let s:status = s:isOk(s:jsonResp)
 
                 if s:status == s:false
                     " save the data offline
-                    echo "writing to offline file"
                     call s:saveOfflineData(s:jsonbody)
                 endif
             endif 
@@ -236,7 +258,6 @@ set cmdheight=10
         endif
     endfunction
 
-    " ......
     function! s:LaunchDashboard()
         let s:web_url = "https://alpha.software.com"
 
@@ -303,8 +324,7 @@ set cmdheight=10
 
         " get the response
         let s:res = system(s:command)
-        " ...
-        " echo "RESPONSE: " . s:res
+
         let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
         let s:unauthPos = stridx(s:res, "Unauthorized")
@@ -323,7 +343,6 @@ set cmdheight=10
         return s:jsonResp
     endfunction
 
-    " ....
     function! s:BuildJsonFromObj(json, obj, key)
         let s:jsonbody = a:json
         let s:val = a:obj[a:key]
@@ -374,33 +393,6 @@ set cmdheight=10
         return s:subkeyval
     endfunction
 
-    function! s:HasData()
-        " go through the file events to see if any of the other metrics have data
-        for key in keys(s:events.source)
-            let s:file_event_info = s:events.source[key]
-            for infoKey in keys(s:file_event_info)
-                if infoKey == "length"
-                    continue
-                endif
-                let s:infoVal = s:file_event_info[infoKey]
-                if s:infoVal > 0
-                    return s:true
-                endif
-            endfor
-        endfor
-
-        return s:false
-    endfunction
-
-    function! s:EnoughTimePassed()
-        let s:prev = s:last_time_check 
-        let s:now = localtime()
-        if s:prev > 0 && s:now - s:prev > 60 
-            return s:true
-        endif
-        return s:false
-    endfunction
-
     function! s:checkSoftwareDir()
        " make sure the dir exists, if not, create it
        if !isdirectory(s:softwareDataDir)
@@ -421,44 +413,43 @@ set cmdheight=10
             " get the value for the incoming key
             let s:currentSessionDict = eval(s:content)
         else
-            echo "No lines to read"
             let s:currentSessionDict = {}
         endif
     endfunction
 
     function! s:getItem(key)
         call s:getSoftwareSessionAsJson()
-        return s:currentSessionDict[a:key]
+        if has_key(s:currentSessionDict, a:key)
+            return s:currentSessionDict[a:key]
+        endif
+        return ""
     endfunction
 
     function! s:setItem(key, val)
         call s:getSoftwareSessionAsJson()
         let s:currentSessionDict[a:key] = a:val
-        echo "updated key/value: " . a:key . "/" . a:val
-        " let s:jsonbody = s:ToJson(s:newItem)
-        " call writefile([s:jsonbody], s:softwareSessionFile)
+        let s:jsonbody = s:ToJson(s:currentSessionDict)
+        execute "silent !echo '" . s:jsonbody . "' >" . s:softwareSessionFile
     endfunction
 
     function! s:saveOfflineData(data)
         call s:checkSoftwareDir()
         " get the data file to save it to s:softwareDataFile
-        execute "silent !echo " . a:data . " >> " . s:softwareDataFile
+        execute "silent !echo '" . a:data . "' >>" . s:softwareDataFile
     endfunction
 
-    function! s:CheckUserAuthentication()
-        echo "Checking use authentication status"
-        call s:getSoftwareSessionAsJson()
-        let s:jwtVal = get(s:currentSessionDict, "jwt)
-        if s:jwtVal == 0
-            " no jwt value, show the sign in message 
-            set cmdheight=5
-            try
-                execute "silent open \"http://alpha.software.com\""
-            catch
-                echoerr "Unable to open url: " . v:exception
-            endtry
-        else
-            " has a jwt value
+    function! s:checkUserAuthentication()
+        " echo "Checking use authentication status"
+        let s:jwt = s:getItem("jwt")
+        echo "JWT: " . s:jwt
+        if !exists(s:jwt)
+            echo "No JWT"
+        elseif
+            let s:jsonResp = s:executeCurl("GET", "/users/ping/", "") 
+            let s:status = s:isOk(s:jsonResp)
+            if s:status == s:false
+                echo "Not Authenticated"
+            endif
         endif
     endfunction
 
