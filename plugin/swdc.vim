@@ -12,7 +12,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
 " uncomment this and the 'echo' commands when releasing this plugin.
-"
+"..
 set shortmess=a
 set cmdheight=12
 
@@ -56,6 +56,7 @@ set cmdheight=12
     let s:kpm_count = 0
     let s:current_file_size = 0
     let s:last_time_check = localtime()
+    let s:lastKpmFetchTime = 0
     let s:events = {
                 \ 'source': {},
                 \ 'type': 'Events',
@@ -167,6 +168,7 @@ set cmdheight=12
 
     function! s:Timer()
         call s:SendData()
+        call s:fetchDailyKpmSessionInfo()
         call feedkeys("f\e")
     endfunction
 
@@ -205,6 +207,14 @@ set cmdheight=12
         let s:prev = s:last_time_check
         let s:now = localtime()
         if s:prev > 0 && s:now - s:prev > 60
+            return s:true
+        endif
+        return s:false
+    endfunction
+
+    function! s:EnoughKpmFetchTimePassed()
+        if localtime() - s:lastKpmFetchTime > 60
+            let s:lastKpmFetchTime = localtime()
             return s:true
         endif
         return s:false
@@ -348,8 +358,6 @@ set cmdheight=12
         " get the response
         let s:res = system(s:command)
 
-        echo "CURL RESP: " . s:res
-
         let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
         let s:unauthPos = stridx(s:res, "Unauthorized")
@@ -358,9 +366,15 @@ set cmdheight=12
             let s:strResp = strpart(s:res, s:pos, len(s:res) - 1)
             let s:jsonResp = json_decode(s:strResp)
             if !has_key(s:jsonResp, "code")
-                " this means our api has returned a message response
-                " which means it wasn't a 200/ok response
-                let s:jsonResp["code"] = 400
+                if has_key(s:jsonResp, "message")
+                    if s:jsonResp["message"] != "success"
+                        let s:jsonResp["code"] = 400
+                    else
+                        let s:jsonResp["code"] = 200
+                    endif
+                else
+                    let s:jsonResp["code"] = 400
+                endif
             endif
         elseif s:unauthPos != -1
             " let s:jsonResp = strpart(s:res, s:unauthPos, len(s:res) - 1)
@@ -489,7 +503,7 @@ set cmdheight=12
     endfunction
 
     function! s:checkUserAuthentication()
-        let s:authenticated = s:false
+        let s:authenticated = s:true
         let s:token = s:getItem("token")
         " echo "Checking use authentication status"
         let s:jwt = s:getItem("jwt")
@@ -544,12 +558,33 @@ set cmdheight=12
            let s:api = "/users/plugin/confirm?token=" . s:tokenVal
            let s:jsonResp = s:executeCurl("GET", s:api, "")
            let s:status = s:isOk(s:jsonResp)
-           " if s:status== s:true
-               " echo "FOUND JWT: " . s:jsonResp["jwt"]
-           " elseif
-               " echo "NO JWT, status: " . s:jsonResp["status"]
-           " endif
+           if s:status == s:true
+               call s:setItem("jwt", s:jsonResp["jwt"])
+           endif
        endif
+    endfunction
+
+    function! s:fetchDailyKpmSessionInfo()
+
+        if s:EnoughKpmFetchTimePassed() == s:true
+            let s:api = "/sessions?from=" . localtime() . "&summary=true"
+            let s:jsonResp = s:executeCurl("GET", s:api, "")
+            if s:isOk(s:jsonResp) == s:true
+                " show the kpm and time
+                let s:kpm = 0
+                let s:minutesTotal = 0
+                let s:inFlow = s:true
+                if has_key(s:jsonResp, "kpm")
+                    echo "KPM: " . s:jsonResp["kpm"]
+                endif
+                if has_key(s:jsonResp, "minutesTotal")
+                    echo "MINUTES: " . s:jsonResp["minutesTotal"]
+                endif
+                if has_key(s:jsonResp, "inFlow")
+                    echo "IN FLOW : " . s:jsonResp["inFlow"]
+                endif
+            endif
+        endif
     endfunction
 
     " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
