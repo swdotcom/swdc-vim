@@ -14,7 +14,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 " uncomment this and the 'echo' commands when releasing this plugin.
 "....
 set shortmess=a
-set cmdheight=1
+set cmdheight=10
 
 " Init {{{
 
@@ -33,6 +33,7 @@ set cmdheight=1
     let s:false = 0
 
     " Check if we've already loaded the plugin or not
+    " ...
     if exists("g:loaded_softwareco")
        finish
     endif
@@ -68,6 +69,7 @@ set cmdheight=1
                 \ }
 
     " flag to indicate if we should error non-communication with the plugin manager or not
+    " ...
     let g:reported_api_err = s:false
 
     function! s:Init()
@@ -255,6 +257,7 @@ set cmdheight=1
             if s:isAuthenticated == s:false
                " not authenticated, write to offline file
                call s:saveOfflineData(s:jsonbody)
+               call s:checkTokenAvailability()
                return
             endif
 
@@ -279,6 +282,8 @@ set cmdheight=1
             " generate a random token
             let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
             call s:setItem("token", s:tokenVal)
+            " update last update time
+            call s:setItem("vim_lastUpdateTime", localtime()
             let s:web_url = s:web_url . "/onboarding?token=" . s:tokenVal
         endif
         execute "silent !open " . s:web_url
@@ -343,7 +348,9 @@ set cmdheight=1
         let s:unauthPos = stridx(s:res, "Unauthorized")
         let s:badReqPos = stridx(s:res, ":404")
         if s:pos != -1
-            let s:jsonResp = json_decode(strpart(s:res, s:pos, len(s:res) - 1))
+            let s:strResp = strpart(s:res, s:pos, len(s:res) - 1)
+            echo "API RESP: " . s:strResp
+            let s:jsonResp = json_decode(s:strResp)
         elseif s:unauthPos != -1
             " let s:jsonResp = strpart(s:res, s:unauthPos, len(s:res) - 1)
             let s:jsonResp = {'code':401}
@@ -508,7 +515,22 @@ set cmdheight=1
         endif
     endfunction
 
-    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
+    " sends a request to get the jwt token
+    function! s:checkTokenAvailability()
+       let s:tokenVal = s:getItem("token") 
+       let s:jwt = s:getItem("jwt")
+       if s:tokenVal != ""
+           " call the api to see if we can find the users JWT
+           let s:jsonResp = s:executeCurl("GET", "/users/plugin/confirm?token=" . s:tokenVal, "")
+           if s:isOk(s:jsonResp) == s:true
+               " echo "FOUND JWT: " . s:jsonResp["jwt"]
+           elseif
+               " echo "NO JWT, status: " . s:jsonResp["status"]
+           endif
+       endif
+    endfunction
+
+    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function.
     function! s:HandleCursorActivity()
         if v:insertmode != 'i'
             return
