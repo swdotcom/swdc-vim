@@ -73,7 +73,8 @@ set cmdheight=1
     function! s:Init()
         " initialization logic 
         call s:checkSoftwareDir()
-        call s:checkUserAuthentication()
+        " call s:checkUserAuthentication()
+        call s:sendOfflineData()
     endfunction
 
     function! s:ResetData()
@@ -411,11 +412,11 @@ set cmdheight=1
 
     function! s:getSoftwareSessionAsJson()
         call s:checkSoftwareDir() 
-        let s:content = ""
         if filereadable(s:softwareSessionFile)
             " get the contents in json format
             let lines = readfile(s:softwareSessionFile)
             " there should only be one line for the session.json file
+            let s:content = ""
             for line in lines
                 let s:content = s:content . line
             endfor
@@ -445,6 +446,18 @@ set cmdheight=1
         call s:checkSoftwareDir()
         " get the data file to save it to s:softwareDataFile
         execute "silent !echo '" . a:data . "' >>" . s:softwareDataFile
+    endfunction
+
+    function! s:sendOfflineData()
+        if filereadable(s:softwareDataFile)
+            let lines = readfile(s:softwareDataFile)
+            " there should only be one line for the session.json file
+            let s:content = ""
+            for line in lines
+                let s:content = s:content . line . ","
+            endfor
+            let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
+        endif 
     endfunction
 
     function! s:checkUserAuthentication()
