@@ -12,7 +12,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 
 "
 " uncomment this and the 'echo' commands when releasing this plugin.
-" ....
+" .......
 set shortmess=a
 set cmdheight=12
 
@@ -56,6 +56,7 @@ set cmdheight=12
     let s:kpm_count = 0
     let s:current_file_size = 0
     let s:lastKpmFetchTime = localtime()
+    let s:lastAuthCheckTime = localtime()
     let s:last_time_check = localtime()
     let s:events = {
                 \ 'source': {},
@@ -167,6 +168,7 @@ set cmdheight=12
     endfunction
 
     function! s:Timer()
+        call s:checkTokenAvailability()
         call s:SendData()
         call s:fetchDailyKpmSessionInfo()
         call feedkeys("f\e")
@@ -208,6 +210,16 @@ set cmdheight=12
         let s:now = localtime()
         if s:prevKpmTime > 0 && s:now - s:prevKpmTime > 60
             let s:lastKpmFetchTime = s:now
+            return s:true
+        endif
+        return s:false
+    endfunction
+
+    function! s:EnoughTimePassedForAuthCheck()
+        let s:prevAuthCheckTime = s:lastAuthCheckTime
+        let s:now = localtime()
+        if s:prevAuthCheckTime > 0 && s:now - s:prevAuthCheckTime > 60
+            let s:lastAuthCheckTime = s:now
             return s:true
         endif
         return s:false
@@ -275,7 +287,6 @@ set cmdheight=12
             if s:isAuthenticated == s:false
                " not authenticated, write to offline file
                call s:saveOfflineData(s:jsonbody)
-               call s:checkTokenAvailability()
                return
             endif
 
@@ -336,7 +347,7 @@ set cmdheight=12
     " Dload  Upload   Total   Spent    Left  Speed
     " 100    12    0    12    0     0   4985      0 --:--:-- --:--:-- --:--:--  6000
     " Unauthorized
-    "
+    ". 
     function! s:executeCurl(method, api, optionalPayload)
 
         let s:methodStr = "-X GET"
@@ -348,6 +359,7 @@ set cmdheight=12
         " look for the jwt token and add it to the headers if we have it
         let s:jwt = s:getItem("jwt")
         if s:jwt != ""
+            echom "USING JWT: '" . s:jwt . "'"
             let s:headers = s:headers . " -H 'Authorization: " . s:jwt . "'"
         endif
 
@@ -356,11 +368,13 @@ set cmdheight=12
             let s:payload = "-d " . a:optionalPayload
         endif
 
-        let s:endpoint = s:api_endpoint . "" . a:api
+        let s:endpoint = "'" . s:api_endpoint . "" . a:api . "'"
         let s:command = "curl " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
+        echom "RUNNING CMD: " . s:command
 
         " get the response
         let s:res = system(s:command)
+        echom "RESPONSE: '" . s:res . "'"
 
         let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
@@ -370,6 +384,8 @@ set cmdheight=12
             let s:strResp = strpart(s:res, s:pos, len(s:res) - 1)
             let s:jsonResp = json_decode(s:strResp)
             if !has_key(s:jsonResp, "code")
+                " it can still be ok with a result like this
+                " {"minutesTotal":0,"kpm":0,"inFlow":false}
                 if has_key(s:jsonResp, "message")
                     let s:msg = s:jsonResp["message"]
                     if s:msg == "success"
@@ -378,9 +394,8 @@ set cmdheight=12
                         let s:jsonResp["code"] = 400
                     endif
                 else
-                    " this means our api has returned a message response
-                    " which means it wasn't a 200/ok response
-                    let s:jsonResp["code"] = 400
+                    " no message, so treat it as a success
+                    let s:jsonResp["code"] = 200
                 endif
             endif
         elseif s:unauthPos != -1
@@ -492,27 +507,28 @@ set cmdheight=12
 
     function! s:sendOfflineData()
         let s:isAuthenticated = s:checkUserAuthentication()
-        if s:isAuthenticated == s:true && filereadable(s:softwareDataFile)
-            let lines = readfile(s:softwareDataFile)
-            " there should only be one line for the session.json file
-            let s:content = ""
-            for line in lines
-                let s:content = s:content . line . ","
-            endfor
-            let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
-            let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
-            let s:status = s:isOk(s:jsonResp)
-            if s:status == s:true
-                " send the batch data, delete the file
-                execute "silent !rm " . s:softwareDataFile
-            endif
-        endif
+        " if s:isAuthenticated == s:true && filereadable(s:softwareDataFile)
+            " let lines = readfile(s:softwareDataFile)
+            " " there should only be one line for the session.json file
+            " let s:content = ""
+            " for line in lines
+                " let s:content = s:content . line . ","
+            " endfor
+            " let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
+            " let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
+            " let s:status = s:isOk(s:jsonResp)
+            " if s:status == s:true
+                " " send the batch data, delete the file
+                " execute "silent !rm " . s:softwareDataFile
+            " endif
+        " endif
     endfunction
 
+
+    " 
     function! s:checkUserAuthentication()
         let s:authenticated = s:false
         let s:token = s:getItem("token")
-        " echo "Checking use authentication status"
         let s:jwt = s:getItem("jwt")
 
         if s:jwt == ""
@@ -522,6 +538,8 @@ set cmdheight=12
             let s:status = s:isOk(s:jsonResp)
             if s:status == s:false
                 let s:authenticated = s:false 
+                " delete the session file
+                execute "silent !rm " . s:softwareSessionFile
             endif
         endif
         
@@ -544,52 +562,59 @@ set cmdheight=12
 
     " sends a request to get the jwt token
     function! s:checkTokenAvailability()
-       let s:tokenVal = s:getItem("token") 
-       let s:jwt = s:getItem("jwt")
-       let s:continueTokenCheck = s:false
+       if s:EnoughTimePassedForAuthCheck() == s:true
+           let s:tokenVal = s:getItem("token") 
+           let s:jwt = s:getItem("jwt")
+           let s:getToken = s:false
 
-       if s:tokenVal != ""
            if s:jwt == ""
-               let s:continueTokenCheck = s:true
-           else
-               " check if we're not authenticated since we already have a jwt
-               let s:authenticated = s:checkUserAuthentication()
-               if s:authenticated == s:false
-                   let s:continueTokenCheck = s:true
+               let s:getToken = s:true
+           endif
+
+           if s:getToken == s:true
+               " call the api to see if we can find the users JWT
+               let s:api = "/users/plugin/confirm?token=" . s:tokenVal
+               let s:jsonResp = s:executeCurl("GET", s:api, "")
+               let s:status = s:isOk(s:jsonResp)
+               if s:status == s:true
+                   echom "FOUND JWT: " . s:jsonResp["jwt"]
+                   call s:setItem("jwt", s:jsonResp["jwt"])
+               elseif
+                   echom "NO JWT, status: " . s:jsonResp["status"]
                endif
            endif
-       endif
-
-       if s:continueTokenCheck == s:true
-           " call the api to see if we can find the users JWT
-           let s:api = "/users/plugin/confirm?token=" . s:tokenVal
-           let s:jsonResp = s:executeCurl("GET", s:api, "")
-           let s:status = s:isOk(s:jsonResp)
-           " if s:status== s:true
-               " echo "FOUND JWT: " . s:jsonResp["jwt"]
-           " elseif
-               " echo "NO JWT, status: " . s:jsonResp["status"]
-           " endif
        endif
     endfunction
 
     function! s:fetchDailyKpmSessionInfo()
         if s:enoughTimePassedForKpmFetch() == s:true
-            let s:now = localtime()
+            let s:now = localtime() - (60 * 3)
             let s:api = "/sessions?from=" . s:now . "&summary=true"
             let s:jsonResp = s:executeCurl("GET", s:api, "")
+            let s:status = s:isOk(s:jsonResp)
+            " {"minutesTotal":0,"kpm":0,"inFlow":false}
+            if s:status == s:true 
+                let s:kpm = 0
+                let s:inFlow = s:true
+                let s:minutesTotal = 0
 
-            let s:kpm = 0
-            let s:inFlow = s:true
-            let s:minutesTotal = 0
+                if has_key(s:jsonResp, "inFlow")
+                    echo "INFLOW: " . s:jsonResp["inFlow"]
+                    if s:jsonResp["inFlow"] == "false"
+                        let s:inFlow = s:false
+                    endif
+                endif
 
-            if has_key(s:jsonResp, "kpm")
-                let s:kpm = str2nr(s:jsonResp["kpm"])
+                if has_key(s:jsonResp, "kpm")
+                    let s:kpm = str2nr(s:jsonResp["kpm"])
+                endif
+                if has_key(s:jsonResp, "minutesTotal")
+                    let s:minutesTotal = str2nr(s:jsonResp["minutesTotal"])
+                endif
+                echo s:kpm . " KPM, " . s:minutesTotal . " min, Inflow: " . s:inFlow
+            else
+                echo "Software.com"
             endif
-            if has_key(s:jsonResp, "minutesTotal")
-                let s:minutesTotal = str2nr(s:jsonResp["minutesTotal"])
-            endif
-            echo s:kpm . " KPM, " . s:minutesTotal . " min"
         endif
     endfunction
 
@@ -650,8 +675,6 @@ set cmdheight=12
         let s:diff = 0
       endif
 
-      " ....
-      " .........
       let s:file = s:GetCurrentFile()
       call s:InitializeFileEvents(s:file)
       if s:diff > 1
