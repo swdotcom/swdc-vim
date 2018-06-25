@@ -13,7 +13,6 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 set shortmess=a
 set cmdheight=1
 
-" ...
 " Init {{{
 
     " Check Vim version:
@@ -288,7 +287,6 @@ set cmdheight=1
 
     " executes an api request (i.e. s:executeCurl("POST", "", s:jsonbody))
     "
-    "....
     " with response....
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
     " Dload  Upload   Total   Spent    Left  Speed
@@ -309,7 +307,7 @@ set cmdheight=1
     " Dload  Upload   Total   Spent    Left  Speed
     " 100    12    0    12    0     0   4985      0 --:--:-- --:--:-- --:--:--  6000
     " Unauthorized
-    " ....
+    "
     function! s:executeCurl(method, api, optionalPayload)
 
         let s:methodStr = "-X GET"
@@ -536,10 +534,11 @@ set cmdheight=1
                     let s:kpm = float2nr(s:jsonResp["kpm"])
                 endif
 
+                " Build the kpm string
                 if has_key(s:jsonResp, "minutesTotal")
                     let s:minutesTotal = float2nr(s:jsonResp["minutesTotal"])
                     if s:minutesTotal > 60
-                        let s:hours = s:minutes / 60
+                        let s:hours = s:minutesTotal / 60
                         let s:minStr = s:hours . " hrs"
                     else
                         let s:minStr = s:minutesTotal . " min"
