@@ -10,12 +10,10 @@ let s:local_url_endpoint = 'http://localhost:3000'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://alpha.software.com'
 
-"
-" uncomment this and the 'echo' commands when releasing this plugin.
-" .......
 set shortmess=a
-set cmdheight=12
+set cmdheight=1
 
+" ...
 " Init {{{
 
     " Check Vim version:
@@ -24,7 +22,7 @@ set cmdheight=12
         finish
     endif
 
-    " Avoid side-effects from cpoptions setting....
+    " Avoid side-effects from cpoptions setting
     let s:save_cpo = &cpo
     set cpo&vim
 
@@ -241,54 +239,14 @@ set cmdheight=12
 
             " It passes the time passed check and we have keystroke info to send
             " update end time to now
-            let s:events.end = s:events.start
+            let s:events.end = s:events.start + 60
 
             " update data to a string
             let s:events.data = string(s:events.data)
-
-            let s:jsonbody = "'{"
-            let s:len = len(s:events)
-            let s:counter = 0
-            for key in keys(s:events)
-                if key == 'project'
-                    let s:jsonbody = s:BuildJsonFromObj(s:jsonbody, s:events, key)
-                elseif key == 'source'
-                    " go trhough the file names and build the json object
-                    " per file name
-                    for key in keys(s:events.source)
-                        let s:jsonbody = s:jsonbody . '"source": {"' . key . '": {'
-                        let s:file_event_info = s:events.source[key]
-                        let s:maplen = len(s:file_event_info)
-                        let s:source_counter = 0
-                        for infoKey in keys(s:file_event_info)
-                            let s:jsonbody = s:jsonbody . '"' . infoKey . '": ' . s:file_event_info[infoKey]
-                            let s:source_counter = s:source_counter + 1
-                            if s:source_counter < s:maplen
-                                let s:jsonbody = s:jsonbody . ", "
-                            endif
-                        endfor
-                        let s:jsonbody = s:jsonbody . "}}"
-                    endfor
-                else
-                    let s:keyval = s:BuildInnerValue(s:events, key)
-                    let s:jsonbody = s:jsonbody . '"' . key . '": ' . s:keyval
-                endif
-                let s:counter = s:counter + 1
-                if s:counter < s:len
-                    let s:jsonbody = s:jsonbody . ", "
-                endif
-            endfor
-            let s:jsonbody = s:jsonbody . "}'"
+            
+            let s:jsonbody = s:ToJson(s:events)
 
             call s:ResetData()
-
-            " check if we're authenticated or not
-            let s:isAuthenticated = s:checkUserAuthentication()
-            if s:isAuthenticated == s:false
-               " not authenticated, write to offline file
-               call s:saveOfflineData(s:jsonbody)
-               return
-            endif
 
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
 
@@ -303,6 +261,7 @@ set cmdheight=12
         call s:fetchDailyKpmSessionInfo()
     endfunction
 
+    " launch the software dashboard...
     function! s:launchDashboard()
         let s:web_url = s:url_endpoint
 
@@ -337,6 +296,9 @@ set cmdheight=12
     " {"data":{"status":404},"message":"Resource not found","code":""}
     " OR {"data":"pong","message":"success","code":200}
     "
+    " ok but no code with success message
+    " "message":"success","code":"","data":{"id":"392133","pluginId":"10","data":"13"...
+    "
     " no response...
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
     " Dload  Upload   Total   Spent    Left  Speed
@@ -347,7 +309,7 @@ set cmdheight=12
     " Dload  Upload   Total   Spent    Left  Speed
     " 100    12    0    12    0     0   4985      0 --:--:-- --:--:-- --:--:--  6000
     " Unauthorized
-    ". 
+    " ....
     function! s:executeCurl(method, api, optionalPayload)
 
         let s:methodStr = "-X GET"
@@ -359,22 +321,20 @@ set cmdheight=12
         " look for the jwt token and add it to the headers if we have it
         let s:jwt = s:getItem("jwt")
         if s:jwt != ""
-            echom "USING JWT: '" . s:jwt . "'"
             let s:headers = s:headers . " -H 'Authorization: " . s:jwt . "'"
         endif
 
         let s:payload = ""
-        if exists(a:optionalPayload) && a:optionalPayload != ""
-            let s:payload = "-d " . a:optionalPayload
+        if a:optionalPayload != ""
+            let s:payload = "-d '" . a:optionalPayload . "'"
         endif
 
+        " build the endpoint and curl command then execute the request
         let s:endpoint = "'" . s:api_endpoint . "" . a:api . "'"
         let s:command = "curl " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
-        echom "RUNNING CMD: " . s:command
 
         " get the response
         let s:res = system(s:command)
-        echom "RESPONSE: '" . s:res . "'"
 
         let s:jsonResp = {}
         let s:pos = stridx(s:res, "{")
@@ -383,19 +343,23 @@ set cmdheight=12
         if s:pos != -1
             let s:strResp = strpart(s:res, s:pos, len(s:res) - 1)
             let s:jsonResp = json_decode(s:strResp)
-            if !has_key(s:jsonResp, "code")
+            let s:msg = ""
+            if has_key(s:jsonResp, "message")
+                let s:msg = s:jsonResp["message"]
+            endif
+
+            if s:msg == "success"
+                let s:jsonResp["code"] = 200
+            endif
+
+            if !has_key(s:jsonResp, "code") && s:msg != "success"
                 " it can still be ok with a result like this
                 " {"minutesTotal":0,"kpm":0,"inFlow":false}
-                if has_key(s:jsonResp, "message")
-                    let s:msg = s:jsonResp["message"]
-                    if s:msg == "success"
-                        let s:jsonResp["code"] = 200
-                    else
-                        let s:jsonResp["code"] = 400
-                    endif
+                if !has_key(s:jsonResp, "message")
+                    let s:jsonResp["code"] = 200
                 else
                     " no message, so treat it as a success
-                    let s:jsonResp["code"] = 200
+                    let s:jsonResp["code"] = 400
                 endif
             endif
         elseif s:unauthPos != -1
@@ -408,30 +372,6 @@ set cmdheight=12
         endif
 
         return s:jsonResp
-    endfunction
-
-    function! s:BuildJsonFromObj(json, obj, key)
-        let s:jsonbody = a:json
-        let s:val = a:obj[a:key]
-        let s:vallen = len(s:val)
-        let s:valcounter = 0
-
-        let s:jsonbody = s:jsonbody . '"' . a:key . '": {'
-        for subkey in keys(s:val)
-            " get the value. if it's a string type remove the single quote
-            " and replace it with a double quote
-            let s:subkeyval = s:BuildInnerValue(s:val, subkey)
-
-            " set the key value pair
-            let s:jsonbody = s:jsonbody . '"' . subkey . '": ' . s:subkeyval
-            let s:valcounter = s:valcounter + 1
-            if s:valcounter < s:vallen
-                let s:jsonbody = s:jsonbody . ", "
-            endif
-        endfor
-        let s:jsonbody = s:jsonbody . "}"
-        " return the new jsonbody string
-        return s:jsonbody
     endfunction
 
     function! s:ToJson(input)
@@ -447,17 +387,6 @@ set cmdheight=12
             let json .= '"'.escape(a:input, '"').'"'
         endif
         return json
-    endfunction
-
-    function! s:BuildInnerValue(valobj, valobjkey)
-        " get the value. if it's a string type remove the single quote
-        " and replace it with a double quote
-        let s:subkeyval = a:valobj[a:valobjkey]
-        if type(a:valobj[a:valobjkey]) == type("")
-            let s:subkeyval = substitute(a:valobj[a:valobjkey], '\\n', '', 'g')
-            let s:subkeyval = '"' . s:subkeyval . '"'
-        endif
-        return s:subkeyval
     endfunction
 
     function! s:checkSoftwareDir()
@@ -507,21 +436,21 @@ set cmdheight=12
 
     function! s:sendOfflineData()
         let s:isAuthenticated = s:checkUserAuthentication()
-        " if s:isAuthenticated == s:true && filereadable(s:softwareDataFile)
-            " let lines = readfile(s:softwareDataFile)
-            " " there should only be one line for the session.json file
-            " let s:content = ""
-            " for line in lines
-                " let s:content = s:content . line . ","
-            " endfor
-            " let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
-            " let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
-            " let s:status = s:isOk(s:jsonResp)
-            " if s:status == s:true
+        if s:isAuthenticated == s:true && filereadable(s:softwareDataFile)
+            let lines = readfile(s:softwareDataFile)
+            " there should only be one line for the session.json file
+            let s:content = ""
+            for line in lines
+                let s:content = s:content . line . ","
+            endfor
+            let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
+            let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
+            let s:status = s:isOk(s:jsonResp)
+            if s:status == s:true
                 " " send the batch data, delete the file
-                " execute "silent !rm " . s:softwareDataFile
-            " endif
-        " endif
+                execute "silent !rm " . s:softwareDataFile
+            endif
+        endif
     endfunction
 
 
@@ -577,10 +506,7 @@ set cmdheight=12
                let s:jsonResp = s:executeCurl("GET", s:api, "")
                let s:status = s:isOk(s:jsonResp)
                if s:status == s:true
-                   echom "FOUND JWT: " . s:jsonResp["jwt"]
                    call s:setItem("jwt", s:jsonResp["jwt"])
-               elseif
-                   echom "NO JWT, status: " . s:jsonResp["status"]
                endif
            endif
        endif
@@ -588,36 +514,51 @@ set cmdheight=12
 
     function! s:fetchDailyKpmSessionInfo()
         if s:enoughTimePassedForKpmFetch() == s:true
-            let s:now = localtime() - (60 * 3)
+            let s:now = localtime()
             let s:api = "/sessions?from=" . s:now . "&summary=true"
             let s:jsonResp = s:executeCurl("GET", s:api, "")
             let s:status = s:isOk(s:jsonResp)
             " {"minutesTotal":0,"kpm":0,"inFlow":false}
+            " v:false
             if s:status == s:true 
                 let s:kpm = 0
                 let s:inFlow = s:true
                 let s:minutesTotal = 0
+                let s:minStr = ""
 
                 if has_key(s:jsonResp, "inFlow")
-                    echo "INFLOW: " . s:jsonResp["inFlow"]
-                    if s:jsonResp["inFlow"] == "false"
+                    if s:jsonResp["inFlow"] == v:false
                         let s:inFlow = s:false
                     endif
                 endif
 
                 if has_key(s:jsonResp, "kpm")
-                    let s:kpm = str2nr(s:jsonResp["kpm"])
+                    let s:kpm = float2nr(s:jsonResp["kpm"])
                 endif
+
                 if has_key(s:jsonResp, "minutesTotal")
-                    let s:minutesTotal = str2nr(s:jsonResp["minutesTotal"])
+                    let s:minutesTotal = float2nr(s:jsonResp["minutesTotal"])
+                    if s:minutesTotal > 60
+                        let s:hours = s:minutes / 60
+                        let s:minStr = s:hours . " hrs"
+                    else
+                        let s:minStr = s:minutesTotal . " min"
+                    endif
+                else
+                    s:minStr = "0 min"
                 endif
-                echo s:kpm . " KPM, " . s:minutesTotal . " min, Inflow: " . s:inFlow
+                if s:inFlow == s:true
+                    echo "<s> " . s:kpm . " KPM, " . s:minStr . " ^"
+                else
+                    echo "<s> " . s:kpm . " KPM, " . s:minStr
+                endif
             else
-                echo "Software.com"
+                echo ""
             endif
         endif
     endfunction
 
+    " ....
     " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
     function! s:HandleCursorActivity()
         if v:insertmode != 'i'
