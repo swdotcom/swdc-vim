@@ -4,9 +4,7 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.0'
-let s:local_api_endpoint = 'http://localhost:5000'
-let s:local_url_endpoint = 'http://localhost:3000'
+let s:VERSION = '1.1.1'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://alpha.software.com'
 
@@ -36,8 +34,8 @@ set cmdheight=1
     let g:loaded_softwareco = s:true
 
     let s:home = expand("$HOME")
-    let s:api_endpoint = s:local_api_endpoint
-    let s:url_endpoint = s:local_url_endpoint
+    let s:api_endpoint = s:prod_api_endpoint
+    let s:url_endpoint = s:prod_url_endpoint
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
     let s:softwareDataFile = s:softwareDataDir . "/data.json"
@@ -215,13 +213,14 @@ set cmdheight=1
     function! s:EnoughTimePassedForAuthCheck()
         let s:prevAuthCheckTime = s:lastAuthCheckTime
         let s:now = localtime()
-        if s:prevAuthCheckTime > 0 && s:now - s:prevAuthCheckTime > 60
+        if s:prevAuthCheckTime > 0 && s:now - s:prevAuthCheckTime > 120
             let s:lastAuthCheckTime = s:now
             return s:true
         endif
         return s:false
     endfunction
 
+    " this check if a minute has passed in order to send the kpm data
     function! s:EnoughTimePassed()
         let s:prev = s:last_time_check
         let s:now = localtime()
@@ -451,7 +450,6 @@ set cmdheight=1
         endif
     endfunction
 
-
     " 
     function! s:checkUserAuthentication()
         let s:authenticated = s:false
@@ -479,7 +477,7 @@ set cmdheight=1
 
     function! s:confirmSignInLaunch()
         " 0 is returned if the user aborts the dialog by pressing <Esc>, CTRL-C, or another interrupt key
-        let s:answer = confirm('To see your coding data in Software.com, please sign in to your account.', "&Not now\n&Sign in", 2)
+        let s:answer = confirm('To see your coding data in Software.com, please log in to your account.', "&Not now\n&Log in", 2)
         if s:answer == 2
             call s:launchDashboard()
             redraw!
