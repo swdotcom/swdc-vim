@@ -11,6 +11,7 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 set shortmess=a
 set cmdheight=1
 
+"........
 " Init {{{
 
     " Check Vim version:
@@ -165,7 +166,7 @@ set cmdheight=1
     function! s:Timer()
         call s:checkTokenAvailability()
         call s:SendData()
-        call s:fetchDailyKpmSessionInfo()
+        call s:FetchDailyKpmSessionInfo()
         call feedkeys("f\e")
     endfunction
 
@@ -248,7 +249,7 @@ set cmdheight=1
 
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
 
-            let s:status = s:isOk(s:jsonResp)
+            let s:status = s:IsOk(s:jsonResp)
 
             if s:status == s:false
                 " save the data offline
@@ -256,11 +257,11 @@ set cmdheight=1
             endif
 
         endif
-        call s:fetchDailyKpmSessionInfo()
+        call s:FetchDailyKpmSessionInfo()
     endfunction
 
     " launch the software dashboard...
-    function! s:launchDashboard()
+    function! s:LaunchDashboard()
         let s:web_url = s:url_endpoint
 
         let s:jwt = s:getItem("jwt")
@@ -276,7 +277,7 @@ set cmdheight=1
         execute "silent !open " . s:web_url
     endfunction
 
-    function! s:isOk(jsonresp)
+    function! s:IsOk(jsonresp)
         if a:jsonresp["code"] != 200
             return s:false
         endif
@@ -442,7 +443,7 @@ set cmdheight=1
             endfor
             let s:content = "[" . strpart(s:content, 0, len(s:content) - 1) . "]"
             let s:jsonResp = s:executeCurl("POST", "/data/batch", s:content)
-            let s:status = s:isOk(s:jsonResp)
+            let s:status = s:IsOk(s:jsonResp)
             if s:status == s:true
                 " " send the batch data, delete the file
                 execute "silent !rm " . s:softwareDataFile
@@ -460,7 +461,7 @@ set cmdheight=1
             let s:authenticated = s:false
         else
             let s:jsonResp = s:executeCurl("GET", "/users/ping/", "")
-            let s:status = s:isOk(s:jsonResp)
+            let s:status = s:IsOk(s:jsonResp)
             if s:status == s:false
                 let s:authenticated = s:false 
                 " delete the session file
@@ -479,7 +480,7 @@ set cmdheight=1
         " 0 is returned if the user aborts the dialog by pressing <Esc>, CTRL-C, or another interrupt key
         let s:answer = confirm('To see your coding data in Software.com, please log in to your account.', "&Not now\n&Log in", 2)
         if s:answer == 2
-            call s:launchDashboard()
+            call s:LaunchDashboard()
             redraw!
             echo ""
         endif
@@ -500,7 +501,7 @@ set cmdheight=1
                " call the api to see if we can find the users JWT
                let s:api = "/users/plugin/confirm?token=" . s:tokenVal
                let s:jsonResp = s:executeCurl("GET", s:api, "")
-               let s:status = s:isOk(s:jsonResp)
+               let s:status = s:IsOk(s:jsonResp)
                if s:status == s:true
                    call s:setItem("jwt", s:jsonResp["jwt"])
                endif
@@ -508,12 +509,12 @@ set cmdheight=1
        endif
     endfunction
 
-    function! s:fetchDailyKpmSessionInfo()
+    function! s:FetchDailyKpmSessionInfo()
         if s:enoughTimePassedForKpmFetch() == s:true
             let s:now = localtime()
             let s:api = "/sessions?from=" . s:now . "&summary=true"
             let s:jsonResp = s:executeCurl("GET", s:api, "")
-            let s:status = s:isOk(s:jsonResp)
+            let s:status = s:IsOk(s:jsonResp)
             " {"minutesTotal":0,"kpm":0,"inFlow":false}
             " v:false
             if s:status == s:true 
