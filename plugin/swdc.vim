@@ -499,6 +499,9 @@ set cmdheight=1
 
            if s:getToken == s:true
                " call the api to see if we can find the users JWT
+               if (s:tokenVal == "")
+                   let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
+               endif
                let s:api = "/users/plugin/confirm?token=" . s:tokenVal
                let s:jsonResp = s:executeCurl("GET", s:api, "")
                let s:status = s:IsOk(s:jsonResp)
