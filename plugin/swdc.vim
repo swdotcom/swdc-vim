@@ -136,7 +136,6 @@ set cmdheight=1
         if s:EnoughTimePassed()
           call s:SendData()
         endif
-
     endfunction
 
     function! s:InitializeFileEvents(file)
@@ -195,7 +194,7 @@ set cmdheight=1
         else
             let s:lastTimeChecked = str2nr(s:lastTimeChecked)
         endif
-        if localtime() - s:lastTimeChecked > (60 * 60 * 24)
+        if localtime() - s:lastTimeChecked > (60 * 60 * 6)
             return s:true
         endif
         return s:false
@@ -275,6 +274,8 @@ set cmdheight=1
             let s:web_url = s:web_url . "/onboarding?token=" . s:tokenVal
         endif
         execute "silent !open " . s:web_url
+        redraw!
+        echo ""
     endfunction
 
     function! s:IsOk(jsonresp)
@@ -481,8 +482,6 @@ set cmdheight=1
         let s:answer = confirm('To see your coding data in Software.com, please log in to your account.', "&Not now\n&Log in", 2)
         if s:answer == 2
             call s:LaunchDashboard()
-            redraw!
-            echo ""
         endif
     endfunction
 
@@ -514,48 +513,52 @@ set cmdheight=1
 
     function! s:FetchDailyKpmSessionInfo()
         if s:enoughTimePassedForKpmFetch() == s:true
-            let s:now = localtime()
-            let s:api = "/sessions?from=" . s:now . "&summary=true"
-            let s:jsonResp = s:executeCurl("GET", s:api, "")
-            let s:status = s:IsOk(s:jsonResp)
-            " {"minutesTotal":0,"kpm":0,"inFlow":false}
-            " v:false
-            if s:status == s:true 
-                let s:kpm = 0
-                let s:inFlow = s:true
-                let s:minutesTotal = 0
-                let s:minStr = ""
+            call s:FetchDailyKpmNow()
+        endif
+    endfunction
 
-                if has_key(s:jsonResp, "inFlow")
-                    if s:jsonResp["inFlow"] == v:false
-                        let s:inFlow = s:false
-                    endif
+    function! s:FetchDailyKpmNow()
+        let s:now = localtime()
+        let s:api = "/sessions?from=" . s:now . "&summary=true"
+        let s:jsonResp = s:executeCurl("GET", s:api, "")
+        let s:status = s:IsOk(s:jsonResp)
+        " {"minutesTotal":0,"kpm":0,"inFlow":false}
+        " v:false
+        if s:status == s:true 
+            let s:kpm = 0
+            let s:inFlow = s:true
+            let s:minutesTotal = 0
+            let s:minStr = ""
+
+            if has_key(s:jsonResp, "inFlow")
+                if s:jsonResp["inFlow"] == v:false
+                    let s:inFlow = s:false
                 endif
+            endif
 
-                if has_key(s:jsonResp, "kpm")
-                    let s:kpm = float2nr(s:jsonResp["kpm"])
-                endif
+            if has_key(s:jsonResp, "kpm")
+                let s:kpm = float2nr(s:jsonResp["kpm"])
+            endif
 
-                " Build the kpm string
-                if has_key(s:jsonResp, "minutesTotal")
-                    let s:minutesTotal = float2nr(s:jsonResp["minutesTotal"])
-                    if s:minutesTotal > 60
-                        let s:hours = s:minutesTotal / 60
-                        let s:minStr = s:hours . " hrs"
-                    else
-                        let s:minStr = s:minutesTotal . " min"
-                    endif
+            " Build the kpm string
+            if has_key(s:jsonResp, "minutesTotal")
+                let s:minutesTotal = float2nr(s:jsonResp["minutesTotal"])
+                if s:minutesTotal > 60
+                    let s:hours = s:minutesTotal / 60
+                    let s:minStr = s:hours . " hrs"
                 else
-                    s:minStr = "0 min"
-                endif
-                if s:inFlow == s:true
-                    echo "<s> " . s:kpm . " KPM, " . s:minStr . " ^"
-                else
-                    echo "<s> " . s:kpm . " KPM, " . s:minStr
+                    let s:minStr = s:minutesTotal . " min"
                 endif
             else
-                echo ""
+                s:minStr = "0 min"
             endif
+            if s:inFlow == s:true
+                echo "<s> " . s:kpm . " KPM, " . s:minStr . " ^"
+            else
+                echo "<s> " . s:kpm . " KPM, " . s:minStr
+            endif
+        else
+            echo "Software.com Auth Err"
         endif
     endfunction
 
@@ -657,6 +660,14 @@ set cmdheight=1
         endif
       endif
     endfunction
+
+" }}}
+
+" Plugin Commands {{{
+
+    :command -nargs=0 SoftwareLogin call s:LaunchDashboard()
+    :command -nargs=0 SoftwareKPM call s:FetchDailyKpmNow()
+    :command -nargs=0 SoftwareSessionTime call s:FetchDailyKpmNow()
 
 " }}}
 
