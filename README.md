@@ -6,6 +6,8 @@
 
 ## Setup
 
+<!--- End: setup --->
+
 ### Install
 
 *Steps to be added soon*
@@ -13,6 +15,8 @@
 ### Uninstall
 
 *Steps to be added soon*
+
+<!--- End: setup --->
 
 ## Privacy
 
