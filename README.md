@@ -6,7 +6,7 @@
 
 ## Setup
 
-<!--- End: setup --->
+<!--- Begin: setup --->
 
 ### Install
 
