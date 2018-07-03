@@ -454,7 +454,7 @@ set cmdheight=1
 
     " 
     function! s:checkUserAuthentication()
-        let s:authenticated = s:false
+        let s:authenticated = s:true
         let s:token = s:getItem("token")
         let s:jwt = s:getItem("jwt")
 
@@ -470,7 +470,7 @@ set cmdheight=1
             endif
         endif
         
-        if (s:authenticated == s:false && (s:enoughTimePassedForAuthCheck() == s:true || s:token == ""))
+        if (s:authenticated == s:false && s:enoughTimePassedForAuthCheck() == s:true && s:token == "")
             call s:setItem("vim_lastUpdateTime", localtime())
             call s:confirmSignInLaunch()
         endif
