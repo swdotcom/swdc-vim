@@ -330,7 +330,7 @@ set cmdheight=1
 
         " build the endpoint and curl command then execute the request
         let s:endpoint = "'" . s:api_endpoint . "" . a:api . "'"
-        let s:command = "curl " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
+        let s:command = "curl --max-time 2 " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
 
         " get the response
         let s:res = system(s:command)
@@ -558,12 +558,13 @@ set cmdheight=1
                 echo "<s> " . s:kpm . " KPM, " . s:minStr
             endif
         else
-            echo "Software.com Auth Err"
+            echo "<s> KPM not available"
         endif
     endfunction
 
-    " ....
+    " ...
     " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
+    " ...
     function! s:HandleCursorActivity()
         if v:insertmode != 'i'
             return
