@@ -11,7 +11,6 @@ let s:prod_url_endpoint = 'https://alpha.software.com'
 set shortmess=a
 set cmdheight=1
 
-"........
 " Init {{{
 
     " Check Vim version:
@@ -129,9 +128,12 @@ set cmdheight=1
         let s:file = s:GetCurrentFile()
         call s:InitializeFileEvents(s:file)
 
-        let s:events.source[s:file]['keys'] = s:events.source[s:file]['keys'] + 1
+        let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
         let s:events.data = s:events.data + 1
         " echo 'Software.com: KPM incremented'
+
+        " increment the 'keys'
+        let s:events.source[s:file]['keys'] = s:events.source[s:file]['keys'] + 1
 
         if s:EnoughTimePassed()
           call s:SendData()
@@ -146,7 +148,7 @@ set cmdheight=1
 
         if !has_key(s:events.source, a:file)
            " we don't have the file info data yet, create this structure
-           let s:events.source[a:file] = {'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0}
+           let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0}
         endif
     endfunction
 
@@ -631,11 +633,32 @@ set cmdheight=1
         let s:events.source[s:file]['delete'] = s:events.source[s:file]['delete'] + abs(s:diff)
         " echo 'Software.com: Delete incremented'
       elseif s:diff == 1
-        let s:events.source[s:file]['keys'] = s:events.source[s:file]['keys'] + 1
+        let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
         let s:events.data = s:events.data + 1
         " echo 'Software.com: KPM incremented'
       endif
       let s:kpm_count = s:current_file_size
+
+      " update the line count
+      let s:prevlinecount = s:events.source[s:file]['lines']
+      let s:linecount = len(readfile(s:file))
+      if s:prevlinecount > 0
+          let s:linediff = s:linecount - s:prevlinecount
+          if s:linediff > 0
+              " new lines were added
+              let s:events.source[s:file]['linesAdded'] = s:events.source[s:file]['linesAdded'] + 1
+          elseif s:linediff < 0
+              " lines were removed
+              let s:events.source[s:file]['linesRemoved'] = s:events.source[s:file]['linesRemoved'] + 1
+          endif
+      endif
+      let s:events.source[s:file]['lines'] = s:linecount
+
+      " update the 'keys' and the 'netkeys'
+      " 'netkeys' = add - delete
+      " 'keys' = add + delete
+      let s:events.source[s:file]['keys'] = s:events.source[s:file]['add'] + s:events.source[s:file]['delete']
+      let s:events.source[s:file]['netkeys'] = s:events.source[s:file]['add'] - s:events.source[s:file]['delete']
 
       " update the length for this file
       let s:events.source[s:file]['length'] = s:current_file_size
