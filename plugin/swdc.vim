@@ -43,6 +43,7 @@ set cmdheight=1
     let s:currentToken = ""
     let s:currentSessionDict = {}
     let s:curlOutputFile = s:softwareDataDir . "/vim.out"
+    let s:waitingForResponse = s:false
 
     " api
     let s:pm_endpoint = 'http://localhost:19234/api/v1/data'
@@ -472,7 +473,8 @@ set cmdheight=1
             endif
         endif
         
-        if (s:authenticated == s:false && s:enoughTimePassedForAuthCheck() == s:true && s:token == "")
+        if (s:waitingForResponse == s:false && s:authenticated == s:false && s:enoughTimePassedForAuthCheck() == s:true && s:token == "")
+            let s:waitingForResponse = s:true
             call s:setItem("vim_lastUpdateTime", localtime())
             call s:confirmSignInLaunch()
         endif
@@ -484,6 +486,9 @@ set cmdheight=1
         let s:answer = confirm('To see your coding data in Software.com, please log in to your account.', "&Not now\n&Log in", 2)
         if s:answer == 2
             call s:LaunchDashboard()
+            let s:waitingForResponse = s:false
+        else
+            let s:waitingForResponse = s:false
         endif
     endfunction
 
