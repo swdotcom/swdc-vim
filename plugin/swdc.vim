@@ -694,7 +694,7 @@ set cmdheight=1
 
 " Plugin Commands {{{
 
-    :command -nargs=0 SoftwareLogin call s:LaunchDashboard()
+    :command -nargs=0 SoftwareLogIn call s:LaunchDashboard()
     :command -nargs=0 SoftwareKPM call s:FetchDailyKpmNow()
     :command -nargs=0 SoftwareSessionTime call s:FetchDailyKpmNow()
 
