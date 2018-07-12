@@ -17,6 +17,8 @@
 3. **Install** *Software*: `:PlugInstall`
 4. **Log in** to authenticate your account: `:SoftwareLogIn` (only required for the first plugin you install)
 
+![Install](https://user-images.githubusercontent.com/27828739/42648340-75daea6c-85bb-11e8-83c3-6cbde3f2fd16.gif)
+
 #### Vundle
 
 1. Place this in your .vimrc: `Plugin 'swdotcom/swdc-vim'`
