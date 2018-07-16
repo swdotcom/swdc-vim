@@ -704,9 +704,10 @@ set cmdheight=1
 
     :command -nargs=0 SoftwareLogIn call s:LaunchDashboard()
     :command -nargs=0 SoftwareLogin call s:LaunchDashboard()
+    :command -nargs=0 softwarelogin call s:LaunchDashboard()
     :command -nargs=0 SoftwareKPM call s:FetchDailyKpmNow()
     :command -nargs=0 SoftwareKpm call s:FetchDailyKpmNow()
-    :command -nargs=0 SoftwareSessionTime call s:FetchDailyKpmNow()
+    :command -nargs=0 softwarekpm call s:FetchDailyKpmNow()
 
 " }}}
 
