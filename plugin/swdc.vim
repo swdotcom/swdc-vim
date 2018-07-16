@@ -416,16 +416,24 @@ set cmdheight=1
     endfunction
 
     function! s:getItem(key)
-        call s:getSoftwareSessionAsJson()
         if has_key(s:currentSessionDict, a:key)
             return s:currentSessionDict[a:key]
+        else
+            call s:getSoftwareSessionAsJson()
+            if has_key(s:currentSessionDict, a:key)
+                return s:currentSessionDict[a:key]
+            endif
         endif
         return ""
     endfunction
 
     function! s:setItem(key, val)
-        call s:getSoftwareSessionAsJson()
-        let s:currentSessionDict[a:key] = a:val
+        if has_key(s:currentSessionDict, a:key)
+            let s:currentSessionDict[a:key] = a:val
+        else
+            call s:getSoftwareSessionAsJson()
+            let s:currentSessionDict[a:key] = a:val
+        endif
         let s:jsonbody = s:ToJson(s:currentSessionDict)
         execute "silent !echo '" . s:jsonbody . "' >" . s:softwareSessionFile
     endfunction
@@ -695,7 +703,9 @@ set cmdheight=1
 " Plugin Commands {{{
 
     :command -nargs=0 SoftwareLogIn call s:LaunchDashboard()
+    :command -nargs=0 SoftwareLogin call s:LaunchDashboard()
     :command -nargs=0 SoftwareKPM call s:FetchDailyKpmNow()
+    :command -nargs=0 SoftwareKpm call s:FetchDailyKpmNow()
     :command -nargs=0 SoftwareSessionTime call s:FetchDailyKpmNow()
 
 " }}}
