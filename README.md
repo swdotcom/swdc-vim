@@ -1,63 +1,125 @@
-# *Software* for Vim
+# ***Software*** for Vim
 
-***Software* is currently in private beta. To use this plugin, please join the wait list at https://software.com**
+***Software* is currently in private beta. To use this plugin, please join the waitlist at https://software.com**
 
 *Software* measures activity in your text editor or IDE so you can see the times during the day when you are the most productive. We also help you see how much you code at work or at nights and weekends, how meetings impact the amount you code, and more. 
+
+## Commands
+
+* `:SoftwareKPM` - get the last minute's KPM and code time for the active session
+* `:SoftwareLogin` - log in to Software.com
 
 ## Setup
 
 <!--- Begin: setup --->
 
-### Install
+### Install ***Software***
 
-#### VimPlug
-
-1. Place this in your .vimrc: `Plug 'swdotcom/swdc-vim'`
-2. **Source** your .vimrc: `:source ~/.vimrc`
-3. **Install** *Software*: `:PlugInstall`
-4. **Log in** to authenticate your account: `:SoftwareLogIn` (only required for the first plugin you install)
+The *Software* plugin can be installed either manually or via your plugin manager of choice (see install instructions below).
 
 ![Install](https://user-images.githubusercontent.com/27828739/42648340-75daea6c-85bb-11e8-83c3-6cbde3f2fd16.gif)
 
-#### Vundle
 
-1. Place this in your .vimrc: `Plugin 'swdotcom/swdc-vim'`
-2. **Source** your .vimrc: `:source ~/.vimrc`
-3. **Install** *Software*: `:PluginInstall`
-4. **Log in** to authenticate your account: `:SoftwareLogIn` 
+#### Manual
 
-For Vundle version < 0.10.2, replace Plugin with Bundle above.
+1. Create or find your .vim directory
+2. Create a 'bundle' directory inside of your .vim folder 
+3. Clone the *Software* for Vim plugin to your .vim/bundle directory: `git clone 'swdotcom/swdc-vim'`
+4. If you haven't created a .vimrc file, you'll have to create it first in your home directory.
+5. Set the runtime path in your .vimrc file:
 
-#### Pathogen
+```
+set runtimepath^=~/.vim/bundle/swdc-vim.vim
+```
 
-Run the following commands in your terminal: 
+5. Source your .vimrc in Vim: `:source ~/.vimrc` 
+6. Log in to *Software*: `:SoftwareLogin`
+
+
+#### With VimPlug
+
+1. Add `Plug 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
+
+```
+call plug#begin('~/.vim/plugins')
+Plug 'swdotcom/swdc-vim'
+call plug#end()
+```
+
+2. Source your .vimrc in Vim: `:source ~/.vimrc`
+3. Install *Software* with `:PlugInstall`
+4. Log in to *Software*: `:SoftwareLogin`
+
+
+#### With Vundle
+
+1. Add `Plugin 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
+
+```
+set nocompatible
+filetype off
+set rtp+=~/.vim/bundle/Vundle.vim
+
+call vundle#begin()
+Plugin 'VundleVim/Vundle.vim'
+Plugin 'swdotcom/swdc-vim'
+call vundle#end()
+```
+
+2. Install *Software* with `:PluginInstall`
+3. Log in to *Software*: `:SoftwareLogin`
+
+
+#### With Pathogen
+
+1. Run the following commands in your terminal: 
 
 ```
 cd ~/.vim/bundle
-git clone git://github.com/swdotcom/swdc-vim.git
+git clone https://github.com/swdotcom/swdc-vim.git
 ```
 
-**Log in** to authenticate your account: `:SoftwareLogIn` 
+2. If you're a new Pathogen user, set up your .vimrc so it looks something like this: 
 
-#### NeoBundle
+```
+execute pathogen#infect()
+syntax on
+filetype plugin indent on
+```
 
-1. Place this in your .vimrc: `NeoBundle 'swdotcom/swdc-vim'`
-2. **Source** your .vimrc: `:source ~/.vimrc`
-3. **Install** *Software*: `:NeoBundleInstall`
-4. **Log in** to authenticate your account: `:SoftwareLogIn` 
+3. Log in to *Software*: `:SoftwareLogin`
 
 
-### Commands
+#### With NeoBundle
 
-* `:SoftwareKPM` - retrieve last minute's KPM
-* `:SoftwareSessionTime` - retrieve total time for current session
-* `:SoftwareLogIn` - log in to Software.com
+1. Add `NeoBundle 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
 
-### Uninstall
+```
+set runtimepath+=~/.vim/bundle/neobundle.vim/
+
+call neobundle#begin(expand('~/.vim/bundle/'))
+NeoBundleFetch 'Shougo/neobundle.vim'
+NeoBundle 'swdotcom/swdc-vim'
+call neobundle#end()
+
+filetype plugin indent on
+```
+
+2. Install *Software* with `:NeoBundleInstall`
+
+3. Log in to *Software*: `:SoftwareLogin`
+
+
+### Uninstall ***Software***
 
 1. **Remove** `'swdotcom/swdc-vim'` from your .vimrc
-2. **Run** `:PluginClean` in Vim
-3. **Remove** the `.software` folder from your home directory
+2. **Run** your package manager's Vim command to remove *Software* (e.g. `:PluginClean` for VimPlug)
+3. **Remove** the `.software` folder in your home directory
+
+
+## Resources and Troubleshooting
+
+Helpful links for getting started with Vim plugins: [VimPlug](https://github.com/junegunn/vim-plug), [Vundle](https://github.com/VundleVim/Vundle.vim), [Pathogen](https://github.com/tpope/vim-pathogen), [NeoBundle](https://github.com/Shougo/neobundle.vim), and [installing manually](https://howchoo.com/g/ztmyntqzntm/how-to-install-vim-plugins-without-a-plugin-manager).
 
 <!--- End: setup --->
 
