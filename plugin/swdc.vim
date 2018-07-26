@@ -44,6 +44,7 @@ set cmdheight=1
     let s:currentSessionDict = {}
     let s:curlOutputFile = s:softwareDataDir . "/vim.out"
     let s:waitingForResponse = s:false
+    let s:telemetryOn = s:true
 
     " api
     let s:pm_endpoint = 'http://localhost:19234/api/v1/data'
@@ -282,7 +283,7 @@ set cmdheight=1
     endfunction
 
     function! s:IsOk(jsonresp)
-        if a:jsonresp["code"] != 200
+        if !has_key(s:jsonResp, "code") || a:jsonresp["code"] != 200
             return s:false
         endif
 
@@ -313,6 +314,10 @@ set cmdheight=1
     " Unauthorized
     "
     function! s:executeCurl(method, api, optionalPayload)
+
+        if (s:telemetryOn == s:false)
+            return {}
+        endif
 
         let s:methodStr = "-X GET"
         if tolower(a:method) == "post"
@@ -465,19 +470,21 @@ set cmdheight=1
 
     " 
     function! s:checkUserAuthentication()
-        let s:authenticated = s:true
-        let s:token = s:getItem("token")
-        let s:jwt = s:getItem("jwt")
+        if filereadable(s:softwareSessionFile)
+            let s:authenticated = s:true
+            let s:token = s:getItem("token")
+            let s:jwt = s:getItem("jwt")
 
-        if s:jwt == ""
-            let s:authenticated = s:false
-        else
-            let s:jsonResp = s:executeCurl("GET", "/users/ping/", "")
-            let s:status = s:IsOk(s:jsonResp)
-            if s:status == s:false
-                let s:authenticated = s:false 
-                " delete the session file
-                execute "silent !rm " . s:softwareSessionFile
+            if s:jwt == ""
+                let s:authenticated = s:false
+            else
+                let s:jsonResp = s:executeCurl("GET", "/users/ping/", "")
+                let s:status = s:IsOk(s:jsonResp)
+                if s:status == s:false
+                    let s:authenticated = s:false 
+                    " delete the session file
+                    execute "silent !rm " . s:softwareSessionFile
+                endif
             endif
         endif
         
@@ -514,7 +521,7 @@ set cmdheight=1
            if s:getToken == s:true
                " call the api to see if we can find the users JWT
                if (s:tokenVal == "")
-                   let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
+                   let s:tokenVal = "0q9p7n6m4k2j1VIM54tAc0"
                endif
                let s:api = "/users/plugin/confirm?token=" . s:tokenVal
                let s:jsonResp = s:executeCurl("GET", s:api, "")
@@ -524,6 +531,16 @@ set cmdheight=1
                endif
            endif
        endif
+    endfunction
+
+    function! s:PauseMetrics()
+        let s:telemetryOn = s:false
+        echo "Paused Software.com metrics"
+    endfunction
+
+    function! s:EnableMetrics()
+        let s:telemetryOn = s:true
+        echo "Resuming Software.com metrics"
     endfunction
 
     function! s:FetchDailyKpmSessionInfo()
@@ -544,6 +561,7 @@ set cmdheight=1
             let s:inFlow = s:true
             let s:minutesTotal = 0
             let s:minStr = ""
+            let s:sessionMinGoalPercent = 0.0
 
             if has_key(s:jsonResp, "inFlow")
                 if s:jsonResp["inFlow"] == v:false
@@ -551,9 +569,31 @@ set cmdheight=1
                 endif
             endif
 
+            if has_key(s:jsonResp, "sessionMinGoalPercent")
+                let s:sessionMinGoalPercent = s:jsonResp["sessionMinGoalPercent"]
+            endif
+
             if has_key(s:jsonResp, "kpm")
                 let s:kpm = float2nr(s:jsonResp["kpm"])
             endif
+
+            let s:sessionTimeIcon = ""
+            try
+                let s:sessionTimeIcon = ""
+                if (s:sessionMinGoalPercent > 0)
+                  if (s:sessionMinGoalPercent < 0.40)
+                      let s:sessionTimeIcon = "○"
+                  elseif (s:sessionMinGoalPercent < 0.75)
+                      let s:sessionTimeIcon = "◒"
+                  elseif (s:sessionMinGoalPercent < 0.90)
+                      let s:sessionTimeIcon = "◍"
+                  else
+                      let s:sessionTimeIcon = "⚫"
+                  endif 
+                endif
+            catch /.*/
+                echo "caught an error"
+            endtry
 
             " Build the kpm string
             if has_key(s:jsonResp, "minutesTotal")
@@ -565,15 +605,22 @@ set cmdheight=1
                     let s:minStr = s:minutesTotal . " min"
                 endif
             else
-                s:minStr = "0 min"
+                let s:minStr = "0 min"
             endif
+
+            if s:sessionTimeIcon != ""
+                let s:minStr = s:sessionTimeIcon . " " . s:minStr
+            endif
+            
             if s:inFlow == s:true
-                echo "<s> " . s:kpm . " KPM, " . s:minStr . " ^"
+                echo "<s> " . '🚀' . " " . s:kpm . " KPM, " . s:minStr
             else
                 echo "<s> " . s:kpm . " KPM, " . s:minStr
             endif
         else
-            echo "<s> KPM not available"
+            if (s:telemetryOn != s:false)
+                echo "<s> KPM not available"
+            endif
         endif
     endfunction
 
@@ -704,10 +751,12 @@ set cmdheight=1
 
     :command -nargs=0 SoftwareLogIn call s:LaunchDashboard()
     :command -nargs=0 SoftwareLogin call s:LaunchDashboard()
-    :command -nargs=0 softwarelogin call s:LaunchDashboard()
     :command -nargs=0 SoftwareKPM call s:FetchDailyKpmNow()
     :command -nargs=0 SoftwareKpm call s:FetchDailyKpmNow()
-    :command -nargs=0 softwarekpm call s:FetchDailyKpmNow()
+    :command -nargs=0 SoftwarePauseMetrics call s:PauseMetrics()
+    :command -nargs=0 SoftwarePause call s:PauseMetrics()
+    :command -nargs=0 SoftwareEnableMetrics call s:EnableMetrics()
+    :command -nargs=0 SoftwareEnable call s:EnableMetrics()
 
 " }}}
 
