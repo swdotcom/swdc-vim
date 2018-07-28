@@ -4,7 +4,7 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.1'
+let s:VERSION = '1.1.2'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
@@ -470,8 +470,8 @@ set cmdheight=1
 
     " 
     function! s:checkUserAuthentication()
+        let s:authenticated = s:true
         if filereadable(s:softwareSessionFile)
-            let s:authenticated = s:true
             let s:token = s:getItem("token")
             let s:jwt = s:getItem("jwt")
 
@@ -526,7 +526,7 @@ set cmdheight=1
                let s:api = "/users/plugin/confirm?token=" . s:tokenVal
                let s:jsonResp = s:executeCurl("GET", s:api, "")
                let s:status = s:IsOk(s:jsonResp)
-               if s:status == s:true
+               if has_key(s:jsonResp, "jwt") && s:status == s:true
                    call s:setItem("jwt", s:jsonResp["jwt"])
                endif
            endif
@@ -619,7 +619,7 @@ set cmdheight=1
             endif
         else
             if (s:telemetryOn != s:false)
-                echo "<s> KPM not available"
+                echo "<s> ⚠️ KPM not available"
             endif
         endif
     endfunction
