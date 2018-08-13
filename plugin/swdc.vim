@@ -4,7 +4,7 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.2'
+let s:VERSION = '1.1.3'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
@@ -361,7 +361,7 @@ set cmdheight=1
 
             if !has_key(s:jsonResp, "code") && s:msg != "success"
                 " it can still be ok with a result like this
-                " {"minutesTotal":0,"kpm":0,"inFlow":false}
+                " {"currentSessionMinutes":0,"currentSessionKpm":0,"inFlow":false}
                 if !has_key(s:jsonResp, "message")
                     let s:jsonResp["code"] = 200
                 else
@@ -554,14 +554,14 @@ set cmdheight=1
         let s:api = "/sessions?from=" . s:now . "&summary=true"
         let s:jsonResp = s:executeCurl("GET", s:api, "")
         let s:status = s:IsOk(s:jsonResp)
-        " {"minutesTotal":0,"kpm":0,"inFlow":false}
+        " {"currentSessionMinutes":0,"currentSessionKpm":0,"inFlow":false}
         " v:false
         if s:status == s:true 
-            let s:kpm = 0
+            let s:currentSessionKpm = 0
             let s:inFlow = s:true
-            let s:minutesTotal = 0
+            let s:currentSessionMinutes = 0
             let s:minStr = ""
-            let s:sessionMinGoalPercent = 0.0
+            let s:currentSessionGoalPercent = 0.0
 
             if has_key(s:jsonResp, "inFlow")
                 if s:jsonResp["inFlow"] == v:false
@@ -569,23 +569,23 @@ set cmdheight=1
                 endif
             endif
 
-            if has_key(s:jsonResp, "sessionMinGoalPercent")
-                let s:sessionMinGoalPercent = s:jsonResp["sessionMinGoalPercent"]
+            if has_key(s:jsonResp, "currentSessionGoalPercent")
+                let s:currentSessionGoalPercent = s:jsonResp["currentSessionGoalPercent"]
             endif
 
-            if has_key(s:jsonResp, "kpm")
-                let s:kpm = float2nr(s:jsonResp["kpm"])
+            if has_key(s:jsonResp, "currentSessionKpm")
+                let s:currentSessionKpm = float2nr(s:jsonResp["currentSessionKpm"])
             endif
 
             let s:sessionTimeIcon = ""
             try
                 let s:sessionTimeIcon = ""
-                if (s:sessionMinGoalPercent > 0)
-                  if (s:sessionMinGoalPercent < 0.40)
+                if (s:currentSessionGoalPercent > 0)
+                  if (s:currentSessionGoalPercent < 0.40)
                       let s:sessionTimeIcon = "○"
-                  elseif (s:sessionMinGoalPercent < 0.75)
+                  elseif (s:currentSessionGoalPercent < 0.75)
                       let s:sessionTimeIcon = "◒"
-                  elseif (s:sessionMinGoalPercent < 0.90)
+                  elseif (s:currentSessionGoalPercent < 0.90)
                       let s:sessionTimeIcon = "◍"
                   else
                       let s:sessionTimeIcon = "⚫"
@@ -595,14 +595,14 @@ set cmdheight=1
                 echo "caught an error"
             endtry
 
-            " Build the kpm string
-            if has_key(s:jsonResp, "minutesTotal")
-                let s:minutesTotal = float2nr(s:jsonResp["minutesTotal"])
-                if s:minutesTotal > 60
-                    let s:hours = s:minutesTotal / 60
+            " Build the currentSessionKpm string
+            if has_key(s:jsonResp, "currentSessionMinutes")
+                let s:currentSessionMinutes = float2nr(s:jsonResp["currentSessionMinutes"])
+                if s:currentSessionMinutes > 60
+                    let s:hours = s:currentSessionMinutes / 60
                     let s:minStr = s:hours . " hrs"
                 else
-                    let s:minStr = s:minutesTotal . " min"
+                    let s:minStr = s:currentSessionMinutes . " min"
                 endif
             else
                 let s:minStr = "0 min"
@@ -613,9 +613,9 @@ set cmdheight=1
             endif
             
             if s:inFlow == s:true
-                echo "<s> " . '🚀' . " " . s:kpm . " KPM, " . s:minStr
+                echo "<s> " . '🚀' . " " . s:currentSessionKpm . " KPM, " . s:minStr
             else
-                echo "<s> " . s:kpm . " KPM, " . s:minStr
+                echo "<s> " . s:currentSessionKpm . " KPM, " . s:minStr
             endif
         else
             if (s:telemetryOn != s:false)
