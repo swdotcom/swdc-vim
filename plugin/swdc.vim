@@ -13,13 +13,13 @@ set cmdheight=1
 
 " Init {{{
 
-    " Check Vim version:
+    " Check Vim version
     if v:version < 700
         echoerr "This plugin requires vim >= 7."
         finish
     endif
 
-    " Avoid side-effects from cpoptions setting
+    " Avoid side-effects from cp options setting
     let s:save_cpo = &cpo
     set cpo&vim
 
@@ -38,6 +38,7 @@ set cmdheight=1
     let s:url_endpoint = s:prod_url_endpoint
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
+    let s:trackInfoFile = "trackInfo.out"
     let s:softwareDataFile = s:softwareDataDir . "/data.json"
     let s:currentJwt = ""
     let s:currentToken = ""
@@ -150,7 +151,7 @@ set cmdheight=1
 
         if !has_key(s:events.source, a:file)
            " we don't have the file info data yet, create this structure
-           let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0}
+           let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
         endif
     endfunction
 
@@ -613,13 +614,13 @@ set cmdheight=1
             endif
             
             if s:inFlow == s:true
-                echo "<s> " . '🚀' . " " . s:currentSessionKpm . " KPM, " . s:minStr
+                echo "<S> " . '🚀' . " " . s:currentSessionKpm . " KPM, " . s:minStr
             else
-                echo "<s> " . s:currentSessionKpm . " KPM, " . s:minStr
+                echo "<S> " . s:currentSessionKpm . " KPM, " . s:minStr
             endif
         else
             if (s:telemetryOn != s:false)
-                echo "<s> ⚠️ KPM not available"
+                echo "<S> ⚠️ KPM not available"
             endif
         endif
     endfunction
@@ -681,6 +682,11 @@ set cmdheight=1
       " without making any key stroke....
       if s:diff > 0 && s:kpm_count == 0
         let s:diff = 0
+      endif
+
+      let s:trackInfoJson = s:getCurrentTrackInfo()
+      if s:trackInfoJson != ''
+          let s:events.source[s:file]['trackInfo'] = s:trackInfoJson
       endif
 
       let s:file = s:GetCurrentFile()
@@ -745,6 +751,26 @@ set cmdheight=1
       endif
     endfunction
 
+    " get the current music track info
+    function! s:getCurrentTrackInfo()
+        execute "silent !osascript ./music_script.scpt >" . s:trackInfoFile
+        " writes to the track info file with content like this...
+        " 'genre':'Alternative','artist':'AWOLNATION','id':'1721','name':'Not Your Fault','state':'playing'
+
+        let lines = readfile(s:trackInfoFile)
+        " there should only be one line for the trackinfo.out file
+        let s:content = ""
+        for line in lines
+            let s:content = s:content . line
+        endfor
+        " get the value for the incoming key
+        let s:trackInfoDict = eval(s:content)
+        let s:trackInfoJson = "{}"
+        if has_key(s:trackInfoDict, "artist")
+            let s:trackInfoJson = s:ToJson(s:trackInfoDict)
+        endif
+        return s:trackInfoJson
+    endfunction
 " }}}
 
 " Plugin Commands {{{
