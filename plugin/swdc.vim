@@ -4,7 +4,7 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.3'
+let s:VERSION = '1.1.4'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
@@ -684,13 +684,18 @@ set cmdheight=1
         let s:diff = 0
       endif
 
+      let s:file = s:GetCurrentFile()
+      call s:InitializeFileEvents(s:file)
+
+      if !has_key(s:events.source, s:file)
+          return
+      endif
+
       let s:trackInfoJson = s:getCurrentTrackInfo()
       if s:trackInfoJson != ''
           let s:events.source[s:file]['trackInfo'] = s:trackInfoJson
       endif
 
-      let s:file = s:GetCurrentFile()
-      call s:InitializeFileEvents(s:file)
       if s:diff > 1
         " increment the paste count
         let s:events.source[s:file]['paste'] = s:events.source[s:file]['paste'] + s:diff
@@ -753,23 +758,28 @@ set cmdheight=1
 
     " get the current music track info
     function! s:getCurrentTrackInfo()
-        execute "silent !osascript ./music_script.scpt >" . s:trackInfoFile
-        " writes to the track info file with content like this...
-        " 'genre':'Alternative','artist':'AWOLNATION','id':'1721','name':'Not Your Fault','state':'playing'
+        try
+            execute "silent !osascript ./music_script.scpt >" . s:trackInfoFile
+            " writes to the track info file with content like this...
+            " 'genre':'Alternative','artist':'AWOLNATION','id':'1721','name':'Not Your Fault','state':'playing'
 
-        let lines = readfile(s:trackInfoFile)
-        " there should only be one line for the trackinfo.out file
-        let s:content = ""
-        for line in lines
-            let s:content = s:content . line
-        endfor
-        " get the value for the incoming key
-        let s:trackInfoDict = eval(s:content)
-        let s:trackInfoJson = "{}"
-        if has_key(s:trackInfoDict, "artist")
-            let s:trackInfoJson = s:ToJson(s:trackInfoDict)
-        endif
-        return s:trackInfoJson
+            let lines = readfile(s:trackInfoFile)
+            " there should only be one line for the trackinfo.out file
+            let s:content = ""
+            for line in lines
+                let s:content = s:content . line
+            endfor
+            " get the value for the incoming key
+            let s:trackInfoDict = eval(s:content)
+            let s:trackInfoJson = "{}"
+            if has_key(s:trackInfoDict, "artist")
+                let s:trackInfoJson = s:ToJson(s:trackInfoDict)
+            endif
+            return s:trackInfoJson
+        catch /.*/
+            " error getting the track info, just return an empty object
+            return "{}"
+        endtry
     endfunction
 " }}}
 
