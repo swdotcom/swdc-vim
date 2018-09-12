@@ -249,6 +249,7 @@ set cmdheight=1
             
             let s:jsonbody = s:ToJson(s:events)
 
+            " echo "SENDIND DATA: " . s:jsonbody
             call s:ResetData()
 
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
@@ -306,7 +307,8 @@ set cmdheight=1
     " no response...
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
     " Dload  Upload   Total   Spent    Left  Speed
-    " 0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0curl: (7) Failed to connect to localhost port 5000: Connection refused
+    " 0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+    "    curl: (7) Failed to connect to localhost port 5000: Connection refused
     "
     " not authorized...
     " % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
@@ -593,7 +595,7 @@ set cmdheight=1
                   endif 
                 endif
             catch /.*/
-                echo "caught an error"
+                echo "<S> kpm display error" 
             endtry
 
             " Build the currentSessionKpm string
@@ -705,9 +707,14 @@ set cmdheight=1
         " echo 'Software.com: Delete incremented'
       elseif s:diff == 1
         let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
-        let s:events.data = s:events.data + 1
         " echo 'Software.com: KPM incremented'
       endif
+
+      " update the data value if we have a character count diff
+      if s:diff != 0
+        let s:events.data = s:events.data + 1
+      endif
+
       let s:kpm_count = s:current_file_size
 
       " update the line count
