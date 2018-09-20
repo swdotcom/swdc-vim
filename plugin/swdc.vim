@@ -4,13 +4,14 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.4'
+let s:VERSION = '1.1.5'
 let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
 set shortmess=a
 set cmdheight=1
 
+"
 " Init {{{
 
     " Check Vim version
@@ -19,7 +20,7 @@ set cmdheight=1
         finish
     endif
 
-    " Avoid side-effects from cp options setting
+    " Avoid side-effects from cp options setting.:wq.
     let s:save_cpo = &cpo
     set cpo&vim
 
@@ -27,7 +28,10 @@ set cmdheight=1
     let s:true = 1
     let s:false = 0
 
+    let s:prevPos = 0
+
     " Check if we've already loaded the plugin or not
+    " ...
     if exists("g:loaded_softwareco")
        finish
     endif
@@ -39,6 +43,7 @@ set cmdheight=1
     let s:softwareDataDir = s:home . "/.software"
     let s:softwareSessionFile = s:softwareDataDir . "/session.json"
     let s:trackInfoFile = "trackInfo.out"
+    let s:resourceInfoFile = "resourceInfo.out"
     let s:softwareDataFile = s:softwareDataDir . "/data.json"
     let s:currentJwt = ""
     let s:currentToken = ""
@@ -62,7 +67,7 @@ set cmdheight=1
                 \ 'data': 0,
                 \ 'start': 0,
                 \ 'end': 0,
-                \ 'project': {'name': '', 'directory': ''},
+                \ 'project': {'name': '', 'directory': '', 'identifier': '', 'resource': {}},
                 \ 'pluginId': 10,
                 \ 'version': '0.1.0'
                 \ }
@@ -82,7 +87,7 @@ set cmdheight=1
          let s:events.source = {}
          let s:events.start = localtime()
          let s:events.end = 0
-         let s:events.project = {'name': '', 'directory': ''}
+         let s:events.project = {'name': '', 'directory': '', 'identifier': '', 'resource': {}}
          let s:events.data = 0
          let s:last_time_check = localtime()
     endfunction
@@ -109,7 +114,7 @@ set cmdheight=1
 
     function! s:GetFileCharacterLen()
         execute "silent normal g\<c-g>"
-        if exists("v:statusmsg")
+        if exists(v:statusmsg)
           let s:splitmsg = split(v:statusmsg)
           if len(s:splitmsg) > 15
             return str2nr(s:splitmsg[15])
@@ -156,14 +161,17 @@ set cmdheight=1
     endfunction
 
     function! s:InitializeProject()
-      let s:dir = s:GetFileDirectory()
-      let s:dirName = s:GetDirectoryName()
-
       " update the events object
       if s:events.project.name == ''
+          let s:dir = s:GetFileDirectory()
+          let s:dirName = s:GetDirectoryName()
+
           " initialize it
           let s:events.project.name = s:dirName
           let s:events.project.directory = s:dir
+          let s:resourceInfoDict = s:getResourceInfo()
+          let s:events.project.identifier = s:resourceInfoDict["identifier"]
+          let s:events.project.resource = s:resourceInfoDict
       endif
     endfunction
 
@@ -239,13 +247,15 @@ set cmdheight=1
     " Send the payload to the plugin manager if it meets the timecheck and data availability check
     function! s:SendData()
         if s:EnoughTimePassed() == s:true && s:HasData() == s:true
+            let s:file_len = s:GetFileCharacterLen()
+            let s:events.source[s:file]['length'] = s:file_len
 
             " It passes the time passed check and we have keystroke info to send
             " update end time to now
             let s:events.end = s:events.start + 60
 
             " update data to a string
-            let s:events.data = string(s:events.data)
+            let s:events.data = s:events.data
             
             let s:jsonbody = s:ToJson(s:events)
 
@@ -337,6 +347,7 @@ set cmdheight=1
         let s:payload = ""
         if a:optionalPayload != ""
             let s:payload = "-d '" . a:optionalPayload . "'"
+            " echo "PAYLOAD: " . a:optionalPayload
         endif
 
         " build the endpoint and curl command then execute the request
@@ -384,6 +395,8 @@ set cmdheight=1
         return s:jsonResp
     endfunction
 
+    " let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 
+    " 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
     function! s:ToJson(input)
         let json = ''
         if type(a:input) == type({})
@@ -394,6 +407,13 @@ set cmdheight=1
             let parts = map(deepcopy(a:input), 's:ToJson(v:val)')
             let json .= "[" . join(parts, ",") . "]"
         else
+            " if (v:key == "add" || v:key == "keys" || v:key == "past" || v:key == "open" ||
+		" \ v:key == "close" || v:key == "delete" || v:key == "length" || v:key == "netkeys" ||
+                " \ v:key == "lines" || v:key == "linesAdded" || v:key == "linesRemoved")
+                " let json .= a:input
+            " else
+                " let json .= '"'.escape(a:input, '"').'"'
+            " endif
             let json .= '"'.escape(a:input, '"').'"'
         endif
         return json
@@ -471,7 +491,6 @@ set cmdheight=1
         endif
     endfunction
 
-    " 
     function! s:checkUserAuthentication()
         let s:authenticated = s:true
         if filereadable(s:softwareSessionFile)
@@ -627,21 +646,6 @@ set cmdheight=1
         endif
     endfunction
 
-    " ...
-    " handle curosor activity, but if it's a recognized kpm, call the increment kpm function
-    " ...
-    function! s:HandleCursorActivity()
-        if v:insertmode != 'i'
-            return
-        endif
-
-        let s:file = s:GetCurrentFile()
-        if !empty(s:file) && s:file !~ "-MiniBufExplorer-" && s:file !~ "--NO NAME--" && s:file !~ "^term:"
-            " increment the kpm data
-            call s:IncrementKPM()
-        endif
-    endfunction
-
     " handle file open
     function! s:HandleNewFileActivity()
       call s:InitializeProject()
@@ -653,114 +657,54 @@ set cmdheight=1
       " echo "Software.com: File open incremented"
     endfunction
 
-    function! s:HandleInsertEnterActivity()
-      " handle when entering insert mode
-      let s:kpm_count = s:GetFileCharacterLen()
-    endfunction
-
     function! s:HandleFileReadPostActivity()
       let s:kpm_count = s:GetFileCharacterLen()
     endfunction
 
-    function! s:HandleInsertLeaveActivity()
-      " handle when leaving insert mode
-      call s:HandleLeaveInsertOrBufLeave(s:true)
+    function! s:HandleInsertEnterActivity()
+       call s:InitializeProject()
     endfunction
 
-    function! s:HandleCursorHoldInInsertActivity()
-      " handle no activity when in insert mode
-      call s:HandleLeaveInsertOrBufLeave(s:false)
+    function! s:HandleTextChangedInNormalActivity()
+       let s:file = s:GetCurrentFile()
+       call s:InitializeFileEvents(s:file)
+       call s:InitializeProject()
+       call s:HandleTextChangedInsertModeActivity()
     endfunction
 
-    function! s:HandleLeaveInsertOrBufLeave(sendDataOverride)
-      let s:current_file_size = s:GetFileCharacterLen()
-      let s:diff = 0
-      if s:current_file_size > 0
-        let s:diff = s:current_file_size - s:kpm_count
-      endif
-
-      " make sure we don't count the entire file size as copy and
-      " paste if all they did was start an insert but then saved it
-      " without making any key stroke....
-      if s:diff > 0 && s:kpm_count == 0
-        let s:diff = 0
-      endif
-
-      let s:file = s:GetCurrentFile()
-      call s:InitializeFileEvents(s:file)
-
-      if !has_key(s:events.source, s:file)
-          return
-      endif
-
-      let s:trackInfoJson = s:getCurrentTrackInfo()
-      if s:trackInfoJson != ''
-          let s:events.source[s:file]['trackInfo'] = s:trackInfoJson
-      endif
-
-      if s:diff > 1
-        " increment the paste count
-        let s:events.source[s:file]['paste'] = s:events.source[s:file]['paste'] + s:diff
-        " echo 'Software.com: Copy+Paste incremented'
-      elseif s:diff < 0
-        let s:events.source[s:file]['delete'] = s:events.source[s:file]['delete'] + abs(s:diff)
-        " echo 'Software.com: Delete incremented'
-      elseif s:diff == 1
-        let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
-        " echo 'Software.com: KPM incremented'
-      endif
-
-      " update the data value if we have a character count diff
-      if s:diff != 0
-        let s:events.data = s:events.data + 1
-      endif
-
-      let s:kpm_count = s:current_file_size
-
-      " update the line count
-      let s:prevlinecount = s:events.source[s:file]['lines']
-      let s:linecount = len(readfile(s:file))
-      if s:prevlinecount > 0
-          let s:linediff = s:linecount - s:prevlinecount
-          if s:linediff > 0
-              " new lines were added
-              let s:events.source[s:file]['linesAdded'] = s:events.source[s:file]['linesAdded'] + 1
-          elseif s:linediff < 0
-              " lines were removed
-              let s:events.source[s:file]['linesRemoved'] = s:events.source[s:file]['linesRemoved'] + 1
-          endif
-      endif
-      let s:events.source[s:file]['lines'] = s:linecount
-
-      " update the 'keys' and the 'netkeys'
-      " 'netkeys' = add - delete
-      " 'keys' = add + delete
-      let s:events.source[s:file]['keys'] = s:events.source[s:file]['add'] + s:events.source[s:file]['delete']
-      let s:events.source[s:file]['netkeys'] = s:events.source[s:file]['add'] - s:events.source[s:file]['delete']
-
-      " update the length for this file
-      let s:events.source[s:file]['length'] = s:current_file_size
-
-      if a:sendDataOverride == s:true || s:EnoughTimePassed()
-        call s:SendData()
-      endif
-    endfunction
-
-    function! s:HandleCursorMovedActivity()
-      if &modified == 1
-        " it's a delete since we're not in insert mo
-        call s:InitializeProject()
+    function! s:HandleTextChangedInInsertActivity()
         let s:file = s:GetCurrentFile()
         call s:InitializeFileEvents(s:file)
+        call s:HandleTextChangedInsertModeActivity()
+    endfunction
 
-        let s:file_len = s:GetFileCharacterLen()
-        let s:file_diff = s:file_len - s:events.source[s:file].length
-        if s:file_diff < 0
-          let s:events.source[s:file]['delete'] = s:events.source[s:file]['delete'] + 1
-          " echo 'Software.com: Delete incremented'
-          let s:events.source[s:file]['length'] = s:file_len
-        endif
-      endif
+    function! s:HandleTextChangedInsertModeActivity()
+       let s:cpos = col(".")
+
+       if !has_key(s:events.source, s:file)
+          return
+       endif
+
+       let s:trackInfoJson = s:getCurrentTrackInfo()
+       if s:trackInfoJson != ''
+          let s:events.source[s:file]['trackInfo'] = s:trackInfoJson
+       endif
+
+       if s:prevPos > s:cpos
+           let s:events.source[s:file]['delete'] = s:events.source[s:file]['delete'] + 1
+       else
+           let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
+       endif
+
+       let s:events.data = s:events.data + 1
+
+       " update the 'keys' and the 'netkeys'
+       " 'netkeys' = add - delete
+       " 'keys' = add + delete
+       let s:events.source[s:file]['keys'] = s:events.source[s:file]['add'] + s:events.source[s:file]['delete']
+       let s:events.source[s:file]['netkeys'] = s:events.source[s:file]['add'] - s:events.source[s:file]['delete']
+
+       let s:prevPos = s:cpos
     endfunction
 
     " get the current music track info
@@ -772,10 +716,7 @@ set cmdheight=1
 
             let lines = readfile(s:trackInfoFile)
             " there should only be one line for the trackinfo.out file
-            let s:content = ""
-            for line in lines
-                let s:content = s:content . line
-            endfor
+            let s:content = s:getFileData(s:trackInfoFile)
             " get the value for the incoming key
             let s:trackInfoDict = eval(s:content)
             let s:trackInfoJson = "{}"
@@ -788,6 +729,77 @@ set cmdheight=1
             return "{}"
         endtry
     endfunction
+
+    " get the resource information (i.e. git branch and repo)
+    function! s:getResourceInfo()
+        let s:projectDir = s:GetFileDirectory()
+        let s:resourceInfo = {}
+        let s:oldpath = getcwd()
+.
+	let s:outFile = s:projectDir . "/" . s:resourceInfoFile
+        let s:identifier = ""
+        let s:branch = ""
+        let s:tag = ""
+
+        try
+            execute "silent !cd " . s:projectDir . " && git config --get remote.origin.url > " . s:outFile
+            let s:identifier = s:getFileData(s:outFile)
+            let s:fatalIdx = stridx(s:identifier, "fatal:")
+            if s:fatalIdx != -1
+                let s:identifier = ""
+            endif
+
+            if s:identifier != ""
+                let s:resourceInfo['identifier'] = s:identifier
+
+                execute "silent !cd " . s:projectDir . " && git symbolic-ref --short HEAD > " . s:outFile
+                let s:branch = s:getFileData(s:outFile)
+                let s:fatalIdx = stridx(s:branch, "fatal:")
+                if s:fatalIdx != -1
+                    let s:branch = ""
+                else
+                    let s:resourceInfo['branch'] = s:branch
+                endif
+
+                execute "silent !cd " . s:projectDir . " && git describe --all > " . s:outFile
+                let s:tag = s:getFileData(s:outFile)
+                let s:fatalIdx = stridx(s:tag, "fatal:")
+                if s:fatalIdx != -1
+                    let s:tag = ""
+                else
+                    let s:resourceInfo['tag'] = s:tag
+                endif
+
+                execute "silent !cd " . s:projectDir . " && git config user.email > " . s:outFile
+                let s:email = s:getFileData(s:outFile)
+                let s:fatalIdx = stridx(s:email, "fatal:")
+                if s:fatalIdx != -1
+                    let s:email = ""
+                else
+                    let s:resourceInfo['email'] = s:email
+                endif
+            endif
+
+            if s:identifier != ""
+                " let s:events.project.resource = s:resourceInfo
+                " let s:events.project.identifier = s:identifier
+                return s:resourceInfo
+            endif
+        catch /.*/
+            " failed getting repo info
+        endtry
+        " execute "silent !cd " . s:oldpath
+    endfunction
+
+    function! s:getFileData(fileName)
+       let lines = readfile(a:fileName) 
+       let s:content = ""
+       for line in lines
+           let s:content = s:content . line
+       endfor
+       return s:content
+    endfunction
+
 " }}}
 
 " Plugin Commands {{{
@@ -802,20 +814,16 @@ set cmdheight=1
     :command -nargs=0 SoftwareEnable call s:EnableMetrics()
 
 " }}}
-
-
 " Autocommand Events {{{
 
     " listen for events then call the specified function based on the event
     augroup SoftwareCo
-        autocmd CursorMovedI * call s:HandleCursorActivity()
         " the user doesn't press a key for a while this is triggered
         autocmd CursorHold * call s:Timer()
-        autocmd CursorHoldI * call s:HandleCursorHoldInInsertActivity()
         autocmd BufNewFile,BufReadPost * call s:HandleNewFileActivity()
-        autocmd InsertLeave,BufWritePost * call s:HandleInsertLeaveActivity()
+        autocmd TextChangedI * call s:HandleTextChangedInInsertActivity()
+        autocmd TextChanged * call s:HandleTextChangedInNormalActivity()
         autocmd InsertEnter * call s:HandleInsertEnterActivity()
-        autocmd CursorMoved * call s:HandleCursorMovedActivity()
     augroup END
 
 " }}}
