@@ -11,7 +11,7 @@ let s:prod_url_endpoint = 'https://app.software.com'
 set shortmess=a
 set cmdheight=1
 
-"
+"......
 " Init {{{
 
     " Check Vim version
@@ -64,9 +64,10 @@ set cmdheight=1
     let s:events = {
                 \ 'source': {},
                 \ 'type': 'Events',
-                \ 'data': 0,
+                \ 'keystrokes': 0,
                 \ 'start': 0,
-                \ 'end': 0,
+                \ 'local_start': 0,
+                \ 'timezone': '',
                 \ 'project': {'name': '', 'directory': '', 'identifier': '', 'resource': {}},
                 \ 'pluginId': 10,
                 \ 'version': '0.1.0'
@@ -83,12 +84,13 @@ set cmdheight=1
     endfunction
 
     function! s:ResetData()
-         " reset the data and, start, end, source, and project
+         " reset the data and, start, local_start, source, and project
          let s:events.source = {}
          let s:events.start = localtime()
-         let s:events.end = 0
+         let s:events.local_start = 0
+         let s:events.timezone = ''
          let s:events.project = {'name': '', 'directory': '', 'identifier': '', 'resource': {}}
-         let s:events.data = 0
+         let s:events.keystrokes = 0
          let s:last_time_check = localtime()
     endfunction
 
@@ -137,11 +139,8 @@ set cmdheight=1
         call s:InitializeFileEvents(s:file)
 
         let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
-        let s:events.data = s:events.data + 1
+        let s:events.keystrokes = s:events.keystrokes + 1
         " echo 'Software.com: KPM incremented'
-
-        " increment the 'keys'
-        let s:events.source[s:file]['keys'] = s:events.source[s:file]['keys'] + 1
 
         if s:EnoughTimePassed()
           call s:SendData()
@@ -156,7 +155,7 @@ set cmdheight=1
 
         if !has_key(s:events.source, a:file)
            " we don't have the file info data yet, create this structure
-           let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
+           let s:events.source[a:file] = {'add': 0, 'paste': 0, 'open': 0, 'close': 0, 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
         endif
     endfunction
 
@@ -183,6 +182,9 @@ set cmdheight=1
     endfunction
 
     function! s:HasData()
+        if s:events.keystrokes > 0
+            return s:true
+        endif
         " go through the file events to see if any of the other metrics have data
         for key in keys(s:events.source)
             let s:file_event_info = s:events.source[key]
@@ -252,14 +254,15 @@ set cmdheight=1
 
             " It passes the time passed check and we have keystroke info to send
             " update end time to now
-            let s:events.end = s:events.start + 60
+            let s:events.local_start = s:events.start - 25200 
+            let s:events.timezone = strftime('%Z')
 
             " update data to a string
-            let s:events.data = s:events.data
+            let s:events.keystrokes = s:events.keystrokes
             
             let s:jsonbody = s:ToJson(s:events)
 
-            " echo "SENDIND DATA: " . s:jsonbody
+            echo "SENDIND DATA: " . s:jsonbody
             call s:ResetData()
 
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
@@ -350,6 +353,7 @@ set cmdheight=1
             " echo "PAYLOAD: " . a:optionalPayload
         endif
 
+        "...
         " build the endpoint and curl command then execute the request
         let s:endpoint = "'" . s:api_endpoint . "" . a:api . "'"
         let s:command = "curl --max-time 2 " . s:payload . " " . s:headers . " " . s:methodStr . " " . s:endpoint
@@ -395,7 +399,7 @@ set cmdheight=1
         return s:jsonResp
     endfunction
 
-    " let s:events.source[a:file] = {'add': 0, 'keys': 0, 'paste': 0, 'open': 0, 'close': 0, 
+    " let s:events.source[a:file] = {'add': 0, 'paste': 0, 'open': 0, 'close': 0, 
     " 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
     function! s:ToJson(input)
         let json = ''
@@ -407,7 +411,7 @@ set cmdheight=1
             let parts = map(deepcopy(a:input), 's:ToJson(v:val)')
             let json .= "[" . join(parts, ",") . "]"
         else
-            " if (v:key == "add" || v:key == "keys" || v:key == "past" || v:key == "open" ||
+            " if (v:key == "add" || v:key == "past" || v:key == "open" ||
 		" \ v:key == "close" || v:key == "delete" || v:key == "length" || v:key == "netkeys" ||
                 " \ v:key == "lines" || v:key == "linesAdded" || v:key == "linesRemoved")
                 " let json .= a:input
@@ -696,12 +700,10 @@ set cmdheight=1
            let s:events.source[s:file]['add'] = s:events.source[s:file]['add'] + 1
        endif
 
-       let s:events.data = s:events.data + 1
+       let s:events.keystrokes = s:events.keystrokes + 1
 
-       " update the 'keys' and the 'netkeys'
+       " update the 'netkeys'
        " 'netkeys' = add - delete
-       " 'keys' = add + delete
-       let s:events.source[s:file]['keys'] = s:events.source[s:file]['add'] + s:events.source[s:file]['delete']
        let s:events.source[s:file]['netkeys'] = s:events.source[s:file]['add'] - s:events.source[s:file]['delete']
 
        let s:prevPos = s:cpos
@@ -714,7 +716,6 @@ set cmdheight=1
             " writes to the track info file with content like this...
             " 'genre':'Alternative','artist':'AWOLNATION','id':'1721','name':'Not Your Fault','state':'playing'
 
-            let lines = readfile(s:trackInfoFile)
             " there should only be one line for the trackinfo.out file
             let s:content = s:getFileData(s:trackInfoFile)
             " get the value for the incoming key
