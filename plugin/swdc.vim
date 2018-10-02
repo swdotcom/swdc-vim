@@ -11,7 +11,7 @@ let s:prod_url_endpoint = 'https://app.software.com'
 set shortmess=a
 set cmdheight=1
 
-"......
+"
 " Init {{{
 
     " Check Vim version
@@ -254,7 +254,8 @@ set cmdheight=1
 
             " It passes the time passed check and we have keystroke info to send
             " update end time to now
-            let s:events.local_start = s:events.start - 25200 
+            let s:offset_sec = str2nr(strftime('%z')) * 60
+            let s:events.local_start = s:events.start + s:offset_sec
             let s:events.timezone = strftime('%Z')
 
             " update data to a string
@@ -262,7 +263,7 @@ set cmdheight=1
             
             let s:jsonbody = s:ToJson(s:events)
 
-            echo "SENDIND DATA: " . s:jsonbody
+            " echo "SENDIND DATA: " . s:jsonbody
             call s:ResetData()
 
             let s:jsonResp = s:executeCurl("POST", "/data", s:jsonbody)
