@@ -380,7 +380,7 @@ set cmdheight=1
 
             if !has_key(s:jsonResp, "code") && s:msg != "success"
                 " it can still be ok with a result like this
-                " {"currentSessionMinutes":0,"currentSessionKpm":0,"inFlow":false}
+                " {"currentSessionMinutes":0,"lastKpm":0,"inFlow":false}
                 if !has_key(s:jsonResp, "message")
                     let s:jsonResp["code"] = 200
                 else
@@ -581,10 +581,10 @@ set cmdheight=1
         let s:api = "/sessions?from=" . s:now . "&summary=true"
         let s:jsonResp = s:executeCurl("GET", s:api, "")
         let s:status = s:IsOk(s:jsonResp)
-        " {"currentSessionMinutes":0,"currentSessionKpm":0,"inFlow":false}
+        " {"currentSessionMinutes":0,"lastKpm":0,"inFlow":false}
         " v:false
         if s:status == s:true 
-            let s:currentSessionKpm = 0
+            let s:lastKpm = 0
             let s:inFlow = s:true
             let s:currentSessionMinutes = 0
             let s:minStr = ""
@@ -600,8 +600,8 @@ set cmdheight=1
                 let s:currentSessionGoalPercent = s:jsonResp["currentSessionGoalPercent"]
             endif
 
-            if has_key(s:jsonResp, "currentSessionKpm")
-                let s:currentSessionKpm = float2nr(s:jsonResp["currentSessionKpm"])
+            if has_key(s:jsonResp, "lastKpm")
+                let s:lastKpm = float2nr(s:jsonResp["lastKpm"])
             endif
 
             let s:sessionTimeIcon = ""
@@ -622,7 +622,7 @@ set cmdheight=1
                 echo "<S> kpm display error" 
             endtry
 
-            " Build the currentSessionKpm string
+            " Build the lastKpm string
             if has_key(s:jsonResp, "currentSessionMinutes")
                 let s:currentSessionMinutes = float2nr(s:jsonResp["currentSessionMinutes"])
                 if s:currentSessionMinutes > 60
@@ -640,9 +640,9 @@ set cmdheight=1
             endif
             
             if s:inFlow == s:true
-                echo "<S> " . '🚀' . " " . s:currentSessionKpm . " KPM, " . s:minStr
+                echo "<S> " . '🚀' . " " . s:lastKpm . " KPM, " . s:minStr
             else
-                echo "<S> " . s:currentSessionKpm . " KPM, " . s:minStr
+                echo "<S> " . s:lastKpm . " KPM, " . s:minStr
             endif
         else
             if (s:telemetryOn != s:false)
