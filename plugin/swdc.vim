@@ -608,14 +608,16 @@ set cmdheight=1
             try
                 let s:sessionTimeIcon = ""
                 if (s:currentSessionGoalPercent > 0)
-                  if (s:currentSessionGoalPercent < 0.40)
-                      let s:sessionTimeIcon = "○"
-                  elseif (s:currentSessionGoalPercent < 0.75)
-                      let s:sessionTimeIcon = "◒"
-                  elseif (s:currentSessionGoalPercent < 0.90)
-                      let s:sessionTimeIcon = "◍"
+                  if (s:currentSessionGoalPercent < 0.35)
+                      let s:sessionTimeIcon = "🌘" 
+                  elseif (s:currentSessionGoalPercent < 0.7)
+                      let s:sessionTimeIcon = "🌗"
+                  elseif (s:currentSessionGoalPercent < 0.93)
+                      let s:sessionTimeIcon = "🌖"
+                  elseif (s:currentSessionGoalPercent < 1.3)
+                      let s:sessionTimeIcon = "🌕"
                   else
-                      let s:sessionTimeIcon = "⚫"
+                      let s:sessionTimeIcon = "🌔"
                   endif 
                 endif
             catch /.*/
