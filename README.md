@@ -1,128 +1,30 @@
-# ***Software*** for Vim
+# *Software* for Vim
 
-***Software* is currently in private beta. To use this plugin, please join the waitlist at https://software.com**
+## Measure your coding activity in real time 
 
-*Software* measures activity in your text editor or IDE so you can see the times during the day when you are the most productive. We also help you see how much you code at work or at nights and weekends, how meetings impact the amount you code, and more. 
+*Software* shows you your coding activity to help you increase flow, decrease interrupts, and improve work-life balance. 
+
+It takes just a minute to install our plugin for Vim (see the [setup instructions](https://www.software.com/text-editors-and-ides/vim)).
 
 ## Commands
 
 * `:SoftwareKPM` - get the last minute's KPM and code time for the active session
 * `:SoftwareLogin` - log in to Software.com
 
-## Setup
+### See your coding intensity
 
-<!--- Begin: setup --->
+Our plugin for Vim features a status bar that shows your keystrokes per minute (KPM) for your last minute of activity. We show a rocket icon if your KPM is equal to or above your average KPM per day for the last 90 days--a subtle reminder of your relative coding focus and intensity. 
 
-### Install ***Software***
+![Vim status bar](https://uploads-ssl.webflow.com/5b589ab81371d7c6ffc8d17a/5b858792d845b0d30eed9839_vim-status-bar.png)
 
-The *Software* plugin can be installed either manually or via your plugin manager of choice (see install instructions below).
+### Time tracking
 
-![Install](https://user-images.githubusercontent.com/27828739/42648340-75daea6c-85bb-11e8-83c3-6cbde3f2fd16.gif)
+Longer sessions are generally more productive because we can maintain context and more easily retain logical constructs related to our code. In the status bar, we show a circle with a partial fill (either 25%, 50%, 75%, or 100%) to indicate the duration of your current session vs. your average over the last 90 days.
 
+### Quantify your coding
 
-#### Manual
+In addition to KPM and time, we also measure time spent by project, lines of code, characters added/deleted, and your current Spotify or iTunes track. We distill this data into interesting "datagrams" that you can view in your account at [app.software.com](https://app.software.com).
 
-1. Create or find your .vim directory
-2. Create a 'bundle' directory inside of your .vim folder 
-3. Clone the *Software* for Vim plugin to your .vim/bundle directory: `git clone 'swdotcom/swdc-vim'`
-4. If you haven't created a .vimrc file, you'll have to create it first in your home directory.
-5. Set the runtime path in your .vimrc file:
+### Safe, secure, and free
 
-```
-set runtimepath^=~/.vim/bundle/swdc-vim.vim
-```
-
-5. Source your .vimrc in Vim: `:source ~/.vimrc` 
-6. Log in to *Software*: `:SoftwareLogin`
-
-
-#### With VimPlug
-
-1. Add `Plug 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
-
-```
-call plug#begin('~/.vim/plugins')
-Plug 'swdotcom/swdc-vim'
-call plug#end()
-```
-
-2. Source your .vimrc in Vim: `:source ~/.vimrc`
-3. Install *Software* with `:PlugInstall`
-4. Log in to *Software*: `:SoftwareLogin`
-
-
-#### With Vundle
-
-1. Add `Plugin 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
-
-```
-set nocompatible
-filetype off
-set rtp+=~/.vim/bundle/Vundle.vim
-
-call vundle#begin()
-Plugin 'VundleVim/Vundle.vim'
-Plugin 'swdotcom/swdc-vim'
-call vundle#end()
-```
-
-2. Install *Software* with `:PluginInstall`
-3. Log in to *Software*: `:SoftwareLogin`
-
-
-#### With Pathogen
-
-1. Run the following commands in your terminal: 
-
-```
-cd ~/.vim/bundle
-git clone https://github.com/swdotcom/swdc-vim.git
-```
-
-2. If you're a new Pathogen user, set up your .vimrc so it looks something like this: 
-
-```
-execute pathogen#infect()
-syntax on
-filetype plugin indent on
-```
-
-3. Log in to *Software*: `:SoftwareLogin`
-
-
-#### With NeoBundle
-
-1. Add `NeoBundle 'swdotcom/swdc-vim'` to your .vimrc so it looks something like this: 
-
-```
-set runtimepath+=~/.vim/bundle/neobundle.vim/
-
-call neobundle#begin(expand('~/.vim/bundle/'))
-NeoBundleFetch 'Shougo/neobundle.vim'
-NeoBundle 'swdotcom/swdc-vim'
-call neobundle#end()
-
-filetype plugin indent on
-```
-
-2. Install *Software* with `:NeoBundleInstall`
-
-3. Log in to *Software*: `:SoftwareLogin`
-
-
-### Uninstall ***Software***
-
-1. **Remove** `'swdotcom/swdc-vim'` from your .vimrc
-2. **Run** your package manager's Vim command to remove *Software* (e.g. `:PluginClean` for VimPlug)
-3. **Remove** the `.software` folder in your home directory
-
-
-## Resources and Troubleshooting
-
-Helpful links for getting started with Vim plugins: [VimPlug](https://github.com/junegunn/vim-plug), [Vundle](https://github.com/VundleVim/Vundle.vim), [Pathogen](https://github.com/tpope/vim-pathogen), [NeoBundle](https://github.com/Shougo/neobundle.vim), and [installing manually](https://howchoo.com/g/ztmyntqzntm/how-to-install-vim-plugins-without-a-plugin-manager).
-
-<!--- End: setup --->
-
-## Privacy
-
-Your code is safe! We never process, send or store your code and we respect developer privacy. We give developers full control over their personal information, and we are fully committed to the spirit of privacy frameworks, such as GDPR. For more information, please review our [Privacy Policy](https://software.com/privacy-policy).
+All of our plugins are safe, secure, and free. We do not process, send, or store your proprietary code. We only track productivity-related data, and we make it easy to see the data we collect.
