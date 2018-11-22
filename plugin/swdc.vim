@@ -6,9 +6,9 @@
 
 let s:VERSION = '1.1.6'
 " 'https://api.software.com'
-let s:prod_api_endpoint = 'http://localhost:5000'
+let s:prod_api_endpoint = 'https://api.software.com'
 " 'https://app.software.com'
-let s:prod_url_endpoint = 'http://localhost:3000'
+let s:prod_url_endpoint = 'https://app.software.com'
 
 set shortmess=a
 set cmdheight=1
