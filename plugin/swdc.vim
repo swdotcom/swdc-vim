@@ -4,13 +4,16 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.5'
-let s:prod_api_endpoint = 'https://api.software.com'
-let s:prod_url_endpoint = 'https://app.software.com'
+let s:VERSION = '1.1.6'
+" 'https://api.software.com'
+let s:prod_api_endpoint = 'http://localhost:5000'
+" 'https://app.software.com'
+let s:prod_url_endpoint = 'http://localhost:3000'
 
 set shortmess=a
 set cmdheight=1
 
+" initializing the vim plugin
 "
 " Init {{{
 
@@ -58,6 +61,7 @@ set cmdheight=1
     " event management vars
     let s:kpm_count = 0
     let s:current_file_size = 0
+    let s:currentTrackData = {}
     let s:lastKpmFetchTime = localtime()
     let s:lastAuthCheckTime = localtime()
     let s:last_time_check = localtime()
@@ -175,9 +179,10 @@ set cmdheight=1
     endfunction
 
     function! s:Timer()
-        call s:checkTokenAvailability()
+        call s:CheckTokenAvailability()
         call s:SendData()
         call s:FetchDailyKpmSessionInfo()
+        call s:GatherMusicInfo()
         call feedkeys("f\e")
     endfunction
 
@@ -209,7 +214,8 @@ set cmdheight=1
         else
             let s:lastTimeChecked = str2nr(s:lastTimeChecked)
         endif
-        if localtime() - s:lastTimeChecked > (60 * 60 * 6)
+        " if its greater than 1 hours then return true
+        if localtime() - s:lastTimeChecked > (60 * 60)
             return s:true
         endif
         return s:false
@@ -515,7 +521,7 @@ set cmdheight=1
             endif
         endif
         
-        if (s:waitingForResponse == s:false && s:authenticated == s:false && s:enoughTimePassedForAuthCheck() == s:true && s:token == "")
+        if (s:waitingForResponse == s:false && s:authenticated == s:false && (s:enoughTimePassedForAuthCheck() == s:true || s:token == ""))
             let s:waitingForResponse = s:true
             call s:setItem("vim_lastUpdateTime", localtime())
             call s:confirmSignInLaunch()
@@ -523,6 +529,7 @@ set cmdheight=1
         return s:authenticated
     endfunction
 
+    " confirm signin launch
     function! s:confirmSignInLaunch()
         " 0 is returned if the user aborts the dialog by pressing <Esc>, CTRL-C, or another interrupt key
         let s:answer = confirm('To see your coding data in Software.com, please log in to your account.', "&Not now\n&Log in", 2)
@@ -535,29 +542,27 @@ set cmdheight=1
     endfunction
 
     " sends a request to get the jwt token
-    function! s:checkTokenAvailability()
-       if s:EnoughTimePassedForAuthCheck() == s:true
-           let s:tokenVal = s:getItem("token") 
-           let s:jwt = s:getItem("jwt")
-           let s:getToken = s:false
+    function! s:CheckTokenAvailability()
+        let s:tokenVal = s:getItem("token") 
+        let s:jwt = s:getItem("jwt")
+        let s:getToken = s:false
 
-           if s:jwt == ""
-               let s:getToken = s:true
-           endif
+        if s:jwt == "" && s:tokenVal != ""
+            let s:getToken = s:true
+        endif
 
-           if s:getToken == s:true
-               " call the api to see if we can find the users JWT
-               if (s:tokenVal == "")
-                   let s:tokenVal = "0q9p7n6m4k2j1VIM54tAc0"
-               endif
-               let s:api = "/users/plugin/confirm?token=" . s:tokenVal
-               let s:jsonResp = s:executeCurl("GET", s:api, "")
-               let s:status = s:IsOk(s:jsonResp)
-               if has_key(s:jsonResp, "jwt") && s:status == s:true
-                   call s:setItem("jwt", s:jsonResp["jwt"])
-               endif
-           endif
-       endif
+        if s:getToken == s:true
+            " call the api to see if we can find the users JWT
+            if (s:tokenVal == "")
+                let s:tokenVal = "0q9p7n6m4k2j1VIM54tAc0"
+            endif
+            let s:api = "/users/plugin/confirm?token=" . s:tokenVal
+            let s:jsonResp = s:executeCurl("GET", s:api, "")
+            let s:status = s:IsOk(s:jsonResp)
+            if has_key(s:jsonResp, "jwt") && s:status == s:true
+                call s:setItem("jwt", s:jsonResp["jwt"])
+            endif
+        endif
     endfunction
 
     function! s:PauseMetrics()
@@ -577,7 +582,7 @@ set cmdheight=1
     endfunction
 
     function! s:FetchDailyKpmNow()
-        let s:now = localtime()
+        let s:now = localtime() - 60
         let s:api = "/sessions?from=" . s:now . "&summary=true"
         let s:jsonResp = s:executeCurl("GET", s:api, "")
         let s:status = s:IsOk(s:jsonResp)
@@ -648,7 +653,7 @@ set cmdheight=1
             endif
         else
             if (s:telemetryOn != s:false)
-                echo "<S> ⚠️ KPM not available"
+                echo "<S> ⚠️  KPM not available"
             endif
         endif
     endfunction
@@ -692,11 +697,6 @@ set cmdheight=1
           return
        endif
 
-       let s:trackInfoJson = s:getCurrentTrackInfo()
-       if s:trackInfoJson != ''
-          let s:events.source[s:file]['trackInfo'] = s:trackInfoJson
-       endif
-
        if s:prevPos > s:cpos
            let s:events.source[s:file]['delete'] = s:events.source[s:file]['delete'] + 1
        else
@@ -712,6 +712,39 @@ set cmdheight=1
        let s:prevPos = s:cpos
     endfunction
 
+    function! s:GatherMusicInfo()
+       let s:trackInfoDict = s:getCurrentTrackInfo()
+       let s:trackId = get(s:trackInfoDict, "id", "")
+       let s:currentTrackId = get(s:currentTrackData, "id", "")
+       if s:trackId != s:currentTrackId
+
+           let s:trackInfoJson = "{}"
+           let s:hasData = s:false
+           if s:trackId != ""
+               let s:currentTrackData['start'] = s:now
+               let s:offset_sec = str2nr(strftime('%z')) * 60
+               let s:currentTrackData['local_start'] = s:now + s:offset_sec
+               let s:trackInfoJson = s:ToJson(s:trackInfoDict)
+               let s:hasData = s:true
+           elseif s:currentTrackId != ""
+               let s:currentTrackData['end'] = s:now
+               let s:trackInfoJson = s:ToJson(s:currentTrackData)
+               let s:hasData = s:true
+           endif
+
+           if s:hasData == s:true
+               let s:jsonResp = s:executeCurl("POST", "/data/music", s:trackInfoJson)
+
+               let s:status = s:IsOk(s:jsonResp)
+
+               if s:status == s:false
+                   " unable to send music track information 
+               endif
+           endif
+           let s:currentTrackData = s:trackInfoDict
+       endif 
+    endfunction
+
     " get the current music track info
     function! s:getCurrentTrackInfo()
         try
@@ -721,16 +754,18 @@ set cmdheight=1
 
             " there should only be one line for the trackinfo.out file
             let s:content = s:getFileData(s:trackInfoFile)
+
             " get the value for the incoming key
             let s:trackInfoDict = eval(s:content)
-            let s:trackInfoJson = "{}"
-            if has_key(s:trackInfoDict, "artist")
-                let s:trackInfoJson = s:ToJson(s:trackInfoDict)
+            let s:trackId = get(s:trackInfoDict, "id", "") 
+
+            if (s:trackId != "")
+                return s:trackInfoDict
             endif
-            return s:trackInfoJson
+            return {}
         catch /.*/
             " error getting the track info, just return an empty object
-            return "{}"
+            return {}
         endtry
     endfunction
 
