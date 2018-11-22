@@ -4,17 +4,16 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.6'
+let s:VERSION = '1.1.7'
 " 'https://api.software.com'
 let s:prod_api_endpoint = 'https://api.software.com'
 " 'https://app.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
 set shortmess=a
-set cmdheight=1
+set cmdheight=10
 
 " initializing the vim plugin
-"
 " Init {{{
 
     " Check Vim version
@@ -259,8 +258,8 @@ set cmdheight=1
             let s:events.source[s:file]['length'] = s:file_len
 
             " It passes the time passed check and we have keystroke info to send
-            " update end time to now
-            let s:offset_sec = str2nr(strftime('%z')) * 60
+            " update end time to now....
+            let s:offset_sec = str2nr(strftime('%z')) / 100 * 60 * 60
             let s:events.local_start = s:events.start + s:offset_sec
             let s:events.timezone = strftime('%Z')
 
@@ -722,7 +721,7 @@ set cmdheight=1
            let s:hasData = s:false
            if s:trackId != ""
                let s:currentTrackData['start'] = s:now
-               let s:offset_sec = str2nr(strftime('%z')) * 60
+               let s:offset_sec = str2nr(strftime('%z')) / 100 * 60 * 60
                let s:currentTrackData['local_start'] = s:now + s:offset_sec
                let s:trackInfoJson = s:ToJson(s:trackInfoDict)
                let s:hasData = s:true
