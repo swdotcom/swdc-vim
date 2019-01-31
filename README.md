@@ -1,30 +1,131 @@
-# *Software* for Vim
+# Code Time for Vim
 
-## Measure your coding activity in real time 
+> **Code Time** is an open source plugin that provides programming metrics right in your code editor.
 
-*Software* shows you your coding activity to help you increase flow, decrease interrupts, and improve work-life balance. 
+<!-- <p align="center" style="margin: 0 10%">
+  <img src="" alt="Code Time for Vim" />
+</p> -->
 
-It takes just a minute to install our plugin for Vim (see the [setup instructions](https://www.software.com/text-editors-and-ides/vim)).
+## Power up your development
 
-## Commands
+**In-editor dashboard**
+Get daily and weekly reports of your programming activity right in your code editor.
 
-* `:SoftwareKPM` - get the last minute's KPM and code time for the active session
-* `:SoftwareLogin` - log in to Software.com
+**Status bar metrics**
+After installing our plugin, your status bar will show real-time metrics about time coded per day.
 
-### See your coding intensity
+**Weekly email reports**
+Get a weekly report delivered right to your email inbox.
 
-Our plugin for Vim features a status bar that shows your keystrokes per minute (KPM) for your last minute of activity. We show a rocket icon if your KPM is equal to or above your average KPM per day for the last 90 days--a subtle reminder of your relative coding focus and intensity. 
+**Data visualizations**
+Go to our web app to get simple data visualizations, such as a rolling heatmap of your best programming times by hour of the day.
 
-![Vim status bar](https://uploads-ssl.webflow.com/5b589ab81371d7c6ffc8d17a/5b858792d845b0d30eed9839_vim-status-bar.png)
+**Calendar integration**
+Integrate with Google Calendar to automatically set calendar events to protect your best programming times from meetings and interrupts.
 
-### Time tracking
+**More stats**
+See your best music for coding and the speed, frequency, and top files across your commits.
 
-Longer sessions are generally more productive because we can maintain context and more easily retain logical constructs related to our code. In the status bar, we show a circle with a partial fill (either 25%, 50%, 75%, or 100%) to indicate the duration of your current session vs. your average over the last 90 days.
+## Why you should try it out
 
-### Quantify your coding
+-   Automatic time reports by project
+-   See what time you code your best—find your “flow”
+-   Defend your best code times against meetings and interrupts
+-   Find out what you can learn from your data
 
-In addition to KPM and time, we also measure time spent by project, lines of code, characters added/deleted, and your current Spotify or iTunes track. We distill this data into interesting "datagrams" that you can view in your account at [app.software.com](https://app.software.com).
+## It’s safe, secure, and free
 
-### Safe, secure, and free
+**We never access your code**
+We do not process, send, or store your proprietary code. We only provide metrics about programming, and we make it easy to see the data we collect. 
 
-All of our plugins are safe, secure, and free. We do not process, send, or store your proprietary code. We only track productivity-related data, and we make it easy to see the data we collect.
+**Your data is private**
+We will never share your individually identifiable data with your boss. In the future, we will roll up data into groups and teams but we will keep your data anonymized.
+
+**Free for you, forever**
+We provide 90 days of data history for free, forever. In the future, we will provide premium plans for advanced features and historical data access.
+
+<!--- Begin: setup --->
+
+## Getting started
+
+The Code Time plugin for Vim can be installed either manually or via your plugin manager of choice.
+
+### Manually
+1. Create or find your `.vim` directory
+2. Create a directory called `bundle` inside of your `.vim` folder
+3. Clone the Code Time plugin for Vim to your `.vim/bundle` directory:
+
+```bash
+git clone swdotcom/swdc-vim
+```
+
+4. If you haven't created a `.vimrc` file, you'll have to create it first in your home directory
+5. Set the runtime path in your .vimrc file: 
+
+```
+set runtimepath^=~/.vim/bundle/swdc-vim.vim
+```
+
+6. Source your .vimrc in Vim: `:source ~/.vimrc`
+7. Log in: `:SoftwareLogin`
+
+### With VimPlug 
+1. Add `Plug 'swdotcom/swdc-vim'` to your `.vimrc` so it looks something like this: 
+
+```
+call plug#begin('~/.vim/plugins')
+Plug 'swdotcom/swdc-vim'
+call plug#end()
+```
+
+2. Source your .vimrc in Vim: `:source ~/.vimrc`
+3. Install Code Time with `:PlugInstall`
+4. Log in: `:SoftwareLogin`
+
+### With Vundle
+1. Add `Plugin 'swdotcom/swdc-vim'` to your `.vimrc` so it looks something like this:
+
+```
+set nocompatiblefiletype offset rtp+=~/.vim/bundle/Vundle.vimcall 
+vundle#begin()
+Plugin 'VundleVim/Vundle.vim'
+Plugin 'swdotcom/swdc-vim'
+call vundle#end()
+```
+
+2. Install Code Time with `:PluginInstall`
+3. Log in: `:SoftwareLogin`
+
+### With Pathogen
+1. Run the following commands in your terminal: 
+
+```
+cd ~/.vim/bundlegit
+clone https://github.com/swdotcom/swdc-vim.git
+```
+
+2. If you're a new Pathogen user, set up your `.vimrc` so it looks something like this:
+
+```
+execute pathogen#infect() syntax on filetype plugin indent on
+```
+
+3. Log in: `:SoftwareLogin`
+
+### With NeoBundle
+
+1. Add `NeoBundle 'swdotcom/swdc-vim'` to your `.vimrc` so it looks something like this:
+
+```
+set runtimepath+=~/.vim/bundle/neobundle.vim/
+call neobundle#begin(expand('~/.vim/bundle/'))
+NeoBundleFetch 'Shougo/neobundle.vim'
+NeoBundle 'swdotcom/swdc-vim'
+call neobundle#end()‍
+filetype plugin indent on
+```
+
+2. Install Code Time with ```:NeoBundleInstall```
+3. Log in: `:SoftwareLogin`‍
+
+<!--- End: setup --->
