@@ -289,7 +289,7 @@ set cmdheight=10
         let s:web_url = s:url_endpoint
 
         let s:jwt = s:getItem("jwt")
-        if s:jwt == ""
+        if s:jwt == "" || s:jwt == "0q9p7n6m4k2j1VIM54t"
             " no jwt, launch the onboarding url
             " generate a random token
             let s:tokenVal = "" . localtime()
