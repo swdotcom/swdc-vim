@@ -4,7 +4,7 @@
 " Website:     https://software.com
 " ============================================================================
 
-let s:VERSION = '1.1.7'
+let s:VERSION = '1.1.8'
 " 'https://api.software.com'
 let s:prod_api_endpoint = 'https://api.software.com'
 " 'https://app.software.com'
@@ -84,6 +84,7 @@ set cmdheight=10
         " initialization logic
         call s:checkSoftwareDir()
         call s:sendOfflineData()
+        call s:updateTokenId()
     endfunction
 
     function! s:ResetData()
@@ -497,6 +498,15 @@ set cmdheight=10
             if s:status == s:true
                 " " send the batch data, delete the file
                 execute "silent !rm " . s:softwareDataFile
+            endif
+        endif
+    endfunction
+
+    function! s:updateTokenId()
+        if filereadable(s:softwareSessionFile)
+            let s:tokenVal = s:getItem("token")
+            if (s:tokenVal = "0q9p7n6m4k2j1VIM54tAc0")
+                execute "silent !rm " . s:softwareSessionFile
             endif
         endif
     endfunction
