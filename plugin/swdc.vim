@@ -292,7 +292,7 @@ set cmdheight=10
         if s:jwt == ""
             " no jwt, launch the onboarding url
             " generate a random token
-            let s:tokenVal = "0q9p7n6m4k2j1VIM54t"
+            let s:tokenVal = "" . localtime()
             call s:setItem("token", s:tokenVal)
             " update last update time
             call s:setItem("vim_lastUpdateTime", localtime())
