@@ -11,7 +11,6 @@ let s:prod_api_endpoint = 'https://api.software.com'
 let s:prod_url_endpoint = 'https://app.software.com'
 
 set shortmess=a
-set cmdheight=10
 
 " initializing the vim plugin
 " Init {{{
