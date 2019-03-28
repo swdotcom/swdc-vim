@@ -756,20 +756,20 @@ set shortmess=a
     " get the current music track info
     function! s:getCurrentTrackInfo()
         try
-            execute "silent !osascript music_script.scpt >" . s:trackInfoFile
+            " execute "silent !osascript music_script.scpt >" . s:trackInfoFile
             " writes to the track info file with content like this...
             " 'genre':'Alternative','artist':'AWOLNATION','id':'1721','name':'Not Your Fault','state':'playing'
 
             " there should only be one line for the trackinfo.out file
-            let s:content = s:getFileData(s:trackInfoFile)
+            " let s:content = s:getFileData(s:trackInfoFile)
 
             " get the value for the incoming key
-            let s:trackInfoDict = eval(s:content)
-            let s:trackId = get(s:trackInfoDict, "id", "") 
+            " let s:trackInfoDict = eval(s:content)
+            " let s:trackId = get(s:trackInfoDict, "id", "") 
 
-            if (s:trackId != "")
-                return s:trackInfoDict
-            endif
+            " if (s:trackId != "")
+            "    return s:trackInfoDict
+            " endif
             return {}
         catch /.*/
             " error getting the track info, just return an empty object
