@@ -1,3 +1,6 @@
+## Update: 5/3
+**We are NOT currently maintaining this plugin. We will revisit adding support for Vim in the near future.**
+
 # Code Time for Vim
 
 > **Code Time** is an open source plugin that provides programming metrics right in your code editor.
