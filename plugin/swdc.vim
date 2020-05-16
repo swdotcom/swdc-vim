@@ -266,7 +266,7 @@ set cmdheight=10
 
             " update data to a string
             let s:events.keystrokes = s:events.keystrokes
-            
+
             let s:jsonbody = s:ToJson(s:events)
 
             " echo "SENDIND DATA: " . s:jsonbody
@@ -406,7 +406,7 @@ set cmdheight=10
         return s:jsonResp
     endfunction
 
-    " let s:events.source[a:file] = {'add': 0, 'paste': 0, 'open': 0, 'close': 0, 
+    " let s:events.source[a:file] = {'add': 0, 'paste': 0, 'open': 0, 'close': 0,
     " 'delete': 0, 'length': 0, 'lines': 0, 'linesAdded': 0, 'linesRemoved': 0, 'syntax': "", 'netkeys': 0, 'trackInfo': ""}
     function! s:ToJson(input)
         let json = ''
@@ -505,7 +505,7 @@ set cmdheight=10
     function! s:updateTokenId()
         if filereadable(s:softwareSessionFile)
             let s:tokenVal = s:getItem("token")
-            if (s:tokenVal = "0q9p7n6m4k2j1VIM54tAc0")
+            if (s:tokenVal == "0q9p7n6m4k2j1VIM54tAc0")
                 execute "silent !rm " . s:softwareSessionFile
             endif
         endif
@@ -523,13 +523,13 @@ set cmdheight=10
                 let s:jsonResp = s:executeCurl("GET", "/users/ping/", "")
                 let s:status = s:IsOk(s:jsonResp)
                 if s:status == s:false
-                    let s:authenticated = s:false 
+                    let s:authenticated = s:false
                     " delete the session file
                     execute "silent !rm " . s:softwareSessionFile
                 endif
             endif
         endif
-        
+
         if (s:waitingForResponse == s:false && s:authenticated == s:false && (s:enoughTimePassedForAuthCheck() == s:true || s:token == ""))
             let s:waitingForResponse = s:true
             call s:setItem("vim_lastUpdateTime", localtime())
@@ -552,7 +552,7 @@ set cmdheight=10
 
     " sends a request to get the jwt token
     function! s:CheckTokenAvailability()
-        let s:tokenVal = s:getItem("token") 
+        let s:tokenVal = s:getItem("token")
         let s:jwt = s:getItem("jwt")
         let s:getToken = s:false
 
@@ -597,7 +597,7 @@ set cmdheight=10
         let s:status = s:IsOk(s:jsonResp)
         " {"currentSessionMinutes":0,"lastKpm":0,"inFlow":false}
         " v:false
-        if s:status == s:true 
+        if s:status == s:true
             let s:lastKpm = 0
             let s:inFlow = s:true
             let s:currentSessionMinutes = 0
@@ -623,7 +623,7 @@ set cmdheight=10
                 let s:sessionTimeIcon = ""
                 if (s:currentSessionGoalPercent > 0)
                   if (s:currentSessionGoalPercent < 0.35)
-                      let s:sessionTimeIcon = "🌘" 
+                      let s:sessionTimeIcon = "🌘"
                   elseif (s:currentSessionGoalPercent < 0.7)
                       let s:sessionTimeIcon = "🌗"
                   elseif (s:currentSessionGoalPercent < 0.93)
@@ -632,10 +632,10 @@ set cmdheight=10
                       let s:sessionTimeIcon = "🌕"
                   else
                       let s:sessionTimeIcon = "🌔"
-                  endif 
+                  endif
                 endif
             catch /.*/
-                echo "<S> kpm display error" 
+                echo "<S> kpm display error"
             endtry
 
             " Build the lastKpm string
@@ -654,7 +654,7 @@ set cmdheight=10
             if s:sessionTimeIcon != ""
                 let s:minStr = s:sessionTimeIcon . " " . s:minStr
             endif
-            
+
             if s:inFlow == s:true
                 echo "<S> " . '🚀' . " " . s:lastKpm . " KPM, " . s:minStr
             else
@@ -747,11 +747,11 @@ set cmdheight=10
                let s:status = s:IsOk(s:jsonResp)
 
                if s:status == s:false
-                   " unable to send music track information 
+                   " unable to send music track information
                endif
            endif
            let s:currentTrackData = s:trackInfoDict
-       endif 
+       endif
     endfunction
 
     " get the current music track info
@@ -766,7 +766,7 @@ set cmdheight=10
 
             " get the value for the incoming key
             let s:trackInfoDict = eval(s:content)
-            let s:trackId = get(s:trackInfoDict, "id", "") 
+            let s:trackId = get(s:trackInfoDict, "id", "")
 
             if (s:trackId != "")
                 return s:trackInfoDict
@@ -840,7 +840,7 @@ set cmdheight=10
     endfunction
 
     function! s:getFileData(fileName)
-       let lines = readfile(a:fileName) 
+       let lines = readfile(a:fileName)
        let s:content = ""
        for line in lines
            let s:content = s:content . line
